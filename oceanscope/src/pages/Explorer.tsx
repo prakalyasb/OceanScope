@@ -1,19 +1,20 @@
 import { useState, useEffect } from 'react';
-import type { OceanParameter, VisualizationMode, OceanControls as OceanControlsType } from '../types/oceanData';
-import { mockObservationPoints } from '../data/mockData';
-import GeographicMap from '../components/explorer/CesiumMap';
-import OceanWebGL from '../components/explorer/OceanWebGL';
-import OceanControls from '../components/ocean/OceanControls';
+import type { OceanParameter, OceanControls as OceanControlsType } from '../types/oceanData';
+import { mockObservationPoints, parameterMetadata } from '../data/mockData';
+import IntegratedOceanScene from '../components/explorer/IntegratedOceanScene';
+import AdvancedExplorerControls from '../components/explorer/AdvancedExplorerControls';
 import DataPanel from '../components/ocean/DataPanel';
 import Timeline from '../components/ocean/Timeline';
+import DepthProfileChart from '../components/ui/DepthProfileChart';
+import type { ColorbarConfig } from '../components/ui/ColorbarEditor';
 import './Explorer.css';
 
 export default function Explorer() {
   const [controls, setControls] = useState<OceanControlsType>({
     parameter: 'temperature',
-    depth: 200,
+    depth: 1500,
     time: new Date(),
-    visualizationMode: 'surface',
+    visualizationMode: 'volume',
     showObservationPoints: true,
     isPlaying: false,
     animationSpeed: 1
@@ -22,10 +23,22 @@ export default function Explorer() {
   const [showArgo, setShowArgo] = useState(true);
   const [showGliders, setShowGliders] = useState(false);
   const [showCurrents, setShowCurrents] = useState(true);
+  const [showCTD, setShowCTD] = useState(false);
+  const [showBGC, setShowBGC] = useState(false);
+  const [verticalExaggeration, setVerticalExaggeration] = useState(1);
   const [selectedPoint, setSelectedPoint] = useState(mockObservationPoints[0]);
   const [measurements, setMeasurements] = useState(
     mockObservationPoints[0].measurements[controls.parameter]
   );
+  
+  const [colorbarConfig, setColorbarConfig] = useState<ColorbarConfig>({
+    colorMap: 'temperature',
+    min: 2,
+    max: 32,
+    scale: 'linear',
+    opacity: 0.8,
+    palette: ['#0066cc', '#00d4ff', '#2dd4bf', '#fbbf24', '#ff6b6b']
+  });
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
@@ -63,14 +76,6 @@ export default function Explorer() {
     setControls(prev => ({ ...prev, time }));
   };
 
-  const handleVisualizationModeChange = (mode: VisualizationMode) => {
-    setControls(prev => ({ ...prev, visualizationMode: mode }));
-  };
-
-  const handleToggleObservationPoints = () => {
-    setControls(prev => ({ ...prev, showObservationPoints: !prev.showObservationPoints }));
-  };
-
   const handlePlayPause = () => {
     setControls(prev => ({ ...prev, isPlaying: !prev.isPlaying }));
   };
@@ -78,7 +83,7 @@ export default function Explorer() {
   const handleReset = () => {
     setControls({
       parameter: 'temperature',
-      depth: 200,
+      depth: 1500,
       time: new Date(),
       visualizationMode: 'surface',
       showObservationPoints: true,
@@ -102,6 +107,22 @@ export default function Explorer() {
     setShowCurrents(!showCurrents);
   };
 
+  const handleToggleCTD = () => {
+    setShowCTD(!showCTD);
+  };
+
+  const handleToggleBGC = () => {
+    setShowBGC(!showBGC);
+  };
+
+  const handleVerticalExaggerationChange = (value: number) => {
+    setVerticalExaggeration(value);
+  };
+
+  const handleColorbarConfigChange = (config: ColorbarConfig) => {
+    setColorbarConfig(config);
+  };
+
   return (
     <div className="explorer-page">
       <div className="explorer-header">
@@ -114,38 +135,43 @@ export default function Explorer() {
       <div className="explorer-layout">
         {/* Left Control Panel */}
         <div className="explorer-controls">
-          <OceanControls
+          <AdvancedExplorerControls
             parameter={controls.parameter}
             depth={controls.depth}
             time={controls.time}
-            visualizationMode={controls.visualizationMode}
-            showObservationPoints={controls.showObservationPoints}
             isPlaying={controls.isPlaying}
             showArgo={showArgo}
             showGliders={showGliders}
             showCurrents={showCurrents}
+            showCTD={showCTD}
+            showBGC={showBGC}
+            verticalExaggeration={verticalExaggeration}
+            colorbarConfig={colorbarConfig}
             onParameterChange={handleParameterChange}
             onDepthChange={handleDepthChange}
             onTimeChange={handleTimeChange}
-            onVisualizationModeChange={handleVisualizationModeChange}
-            onToggleObservationPoints={handleToggleObservationPoints}
             onPlayPause={handlePlayPause}
             onReset={handleReset}
             onToggleArgo={handleToggleArgo}
             onToggleGliders={handleToggleGliders}
             onToggleCurrents={handleToggleCurrents}
+            onToggleCTD={handleToggleCTD}
+            onToggleBGC={handleToggleBGC}
+            onVerticalExaggerationChange={handleVerticalExaggerationChange}
+            onColorbarConfigChange={handleColorbarConfigChange}
           />
         </div>
 
-        {/* Center Hybrid Visualization */}
+        {/* Center Integrated 3D Visualization */}
         <div className="explorer-viewport">
-          <GeographicMap />
-          <OceanWebGL
+          <IntegratedOceanScene
             parameter={controls.parameter}
             depth={controls.depth}
             showArgo={showArgo}
             showGliders={showGliders}
             showCurrents={showCurrents}
+            verticalExaggeration={verticalExaggeration}
+            opacity={colorbarConfig.opacity}
           />
         </div>
 
@@ -159,6 +185,21 @@ export default function Explorer() {
               latitude: selectedPoint.latitude,
               longitude: selectedPoint.longitude
             } : undefined}
+          />
+          
+          {/* Depth Profile Chart */}
+          <DepthProfileChart
+            data={measurements.map(m => ({
+              depth: m.depth,
+              model: m.value + (Math.random() - 0.5) * 2,
+              observed: m.value,
+              timestamp: m.timestamp
+            }))}
+            variable={controls.parameter}
+            unit={parameterMetadata[controls.parameter].unit}
+            title={`${parameterMetadata[controls.parameter].name} Profile`}
+            showAnomaly={true}
+            anomalyThreshold={1.5}
           />
         </div>
       </div>

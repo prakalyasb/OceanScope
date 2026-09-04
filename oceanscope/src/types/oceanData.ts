@@ -10,7 +10,8 @@ export type VisualizationMode =
   | 'surface'
   | 'depth'
   | '3dProfile'
-  | 'heatmap';
+  | 'heatmap'
+  | 'volume';
 
 export type DataSource = 
   | 'INCOIS'

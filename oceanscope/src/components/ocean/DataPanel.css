@@ -273,12 +273,12 @@
 }
 
 .legend-line.model {
-  background: #00d4ff;
+  background: #ff6b6b;
   border-style: dashed;
 }
 
 .legend-line.observed {
-  background: #f472b6;
+  background: #00d4ff;
 }
 
 .quality-section {

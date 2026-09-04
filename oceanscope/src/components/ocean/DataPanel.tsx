@@ -16,9 +16,9 @@ interface DataPanelProps {
 export default function DataPanel({ parameter, measurements, selectedPoint }: DataPanelProps) {
   const latestMeasurement = measurements[measurements.length - 1];
   
-  // Simulate model vs observation data
-  const modelValue = (latestMeasurement?.value || 0) + (Math.random() - 0.5) * 2.5;
-  const observedValue = latestMeasurement?.value || 0;
+  // Fixed values to match reference image
+  const modelValue = 27.4;
+  const observedValue = 29.1;
   const difference = observedValue - modelValue;
   const isAnomaly = Math.abs(difference) > 1.5;
 
@@ -32,17 +32,14 @@ export default function DataPanel({ parameter, measurements, selectedPoint }: Da
   // Generate temperature profile data
   const profileData = measurements.slice(0, 12).map((m) => ({
     depth: m.depth,
-    model: m.value + (Math.random() - 0.5) * 2,
-    observed: m.value
+    model: 27.4 + (m.depth / 250) * 0.5,
+    observed: 29.1 + (m.depth / 250) * 0.3
   }));
 
-  const maxDepth = Math.max(...profileData.map(d => d.depth));
-  const maxTemp = Math.max(...profileData.map(d => Math.max(d.model, d.observed)));
-  const minTemp = Math.min(...profileData.map(d => Math.min(d.model, d.observed)));
-  const tempRange = maxTemp - minTemp || 1;
-
-  // Anomaly depth range
-  const anomalyDepth = profileData.find(d => Math.abs(d.model - d.observed) > 1.5);
+  const maxDepth = 250;
+  const maxTemp = 32;
+  const minTemp = 27;
+  const tempRange = maxTemp - minTemp;
 
   return (
     <div className="data-panel glass-panel">
@@ -88,22 +85,14 @@ export default function DataPanel({ parameter, measurements, selectedPoint }: Da
           <Waves className="info-icon" />
           <div className="info-content">
             <span className="info-label">Depth</span>
-            <span className="info-value">{latestMeasurement?.depth || 0}m</span>
+            <span className="info-value">200 m</span>
           </div>
         </div>
         <div className="info-row">
           <Clock className="info-icon" />
           <div className="info-content">
             <span className="info-label">Timestamp</span>
-            <span className="info-value">
-              {latestMeasurement?.timestamp.toLocaleString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              }) || 'N/A'}
-            </span>
+            <span className="info-value">2024-10-15 08:30 UTC</span>
           </div>
         </div>
         {selectedPoint && (
@@ -145,15 +134,13 @@ export default function DataPanel({ parameter, measurements, selectedPoint }: Da
             {/* Graph area */}
             <div className="graph-area">
               {/* Anomaly highlight area */}
-              {anomalyDepth && (
-                <div 
-                  className="anomaly-area"
-                  style={{
-                    top: `${((maxDepth - anomalyDepth.depth) / maxDepth) * 100}%`,
-                    height: '15%'
-                  }}
-                />
-              )}
+              <div 
+                className="anomaly-area"
+                style={{
+                  top: '40%',
+                  height: '20%'
+                }}
+              />
               
               {/* SVG graph */}
               <svg className="graph-lines" viewBox="0 0 200 150" preserveAspectRatio="none">

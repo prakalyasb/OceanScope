@@ -29,11 +29,11 @@
 
 .explorer-layout {
   display: grid;
-  grid-template-columns: 240px 1fr 340px;
-  gap: 0.75rem;
-  padding: 0.75rem;
+  grid-template-columns: 300px 1fr 400px;
+  gap: 1rem;
+  padding: 1rem;
   flex: 1;
-  height: calc(100vh - 9rem);
+  height: calc(100vh - 10rem);
 }
 
 .explorer-controls {
@@ -43,8 +43,6 @@
 
 .explorer-viewport {
   position: relative;
-  display: flex;
-  flex-direction: column;
   background: linear-gradient(180deg, #0a1628 0%, #0f2744 50%, #1a3a5c 100%);
   border: 1px solid rgba(0, 212, 255, 0.15);
   border-radius: 0.75rem;

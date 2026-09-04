@@ -12,13 +12,13 @@ interface TimelineProps {
 export default function Timeline({ currentTime, onTimeChange, isPlaying, onPlayPause }: TimelineProps) {
   const [timelineProgress, setTimelineProgress] = useState(50);
 
-  // Generate timeline dates
+  // Generate timeline dates matching reference
   const timelineDates = useMemo(() => [
-    { date: '18 Jan', fullDate: '2024-01-18' },
-    { date: '20 May', fullDate: '2024-05-20' },
-    { date: '22 May', fullDate: '2024-05-22' },
+    { date: '18 Oct', fullDate: '2024-10-18' },
+    { date: '20 Oct', fullDate: '2024-10-20' },
+    { date: '22 Oct', fullDate: '2024-10-22' },
     { date: '01 Nov', fullDate: '2024-11-01' },
-    { date: '15 Dec', fullDate: '2024-12-15' }
+    { date: '15 Nov', fullDate: '2024-11-15' }
   ], []);
 
   // Generate time-series data points
