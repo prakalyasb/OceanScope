@@ -12,6 +12,7 @@ interface OceanControlsProps {
   isPlaying: boolean;
   showArgo: boolean;
   showGliders: boolean;
+  showCurrents: boolean;
   onParameterChange: (param: OceanParameter) => void;
   onDepthChange: (depth: number) => void;
   onTimeChange: (time: Date) => void;
@@ -21,6 +22,7 @@ interface OceanControlsProps {
   onReset: () => void;
   onToggleArgo: () => void;
   onToggleGliders: () => void;
+  onToggleCurrents: () => void;
 }
 
 const parameters: OceanParameter[] = ['temperature', 'salinity', 'chlorophyll', 'currentSpeed', 'waveHeight', 'dissolvedOxygen'];
@@ -34,6 +36,7 @@ export default function OceanControls({
   isPlaying,
   showArgo,
   showGliders,
+  showCurrents,
   onParameterChange,
   onDepthChange,
   onTimeChange,
@@ -42,7 +45,8 @@ export default function OceanControls({
   onPlayPause,
   onReset,
   onToggleArgo,
-  onToggleGliders
+  onToggleGliders,
+  onToggleCurrents
 }: OceanControlsProps) {
   // Suppress unused parameter warnings
   void visualizationMode;
@@ -100,6 +104,7 @@ export default function OceanControls({
             type="range"
             min="0"
             max="3000"
+            step="100"
             value={depth}
             onChange={(e) => onDepthChange(Number(e.target.value))}
             className="depth-slider vertical"
@@ -154,6 +159,13 @@ export default function OceanControls({
           >
             <Layers />
             <span>Gliders</span>
+          </button>
+          <button
+            className={`toggle-switch ${showCurrents ? 'active' : ''}`}
+            onClick={onToggleCurrents}
+          >
+            <Activity />
+            <span>Currents</span>
           </button>
         </div>
       </div>

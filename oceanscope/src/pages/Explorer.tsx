@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import type { OceanParameter, VisualizationMode, OceanControls as OceanControlsType } from '../types/oceanData';
 import { mockObservationPoints } from '../data/mockData';
-import OceanScene from '../components/ocean/OceanScene';
+import GeographicMap from '../components/explorer/CesiumMap';
+import OceanWebGL from '../components/explorer/OceanWebGL';
 import OceanControls from '../components/ocean/OceanControls';
 import DataPanel from '../components/ocean/DataPanel';
 import Timeline from '../components/ocean/Timeline';
@@ -10,7 +11,7 @@ import './Explorer.css';
 export default function Explorer() {
   const [controls, setControls] = useState<OceanControlsType>({
     parameter: 'temperature',
-    depth: 1000,
+    depth: 200,
     time: new Date(),
     visualizationMode: 'surface',
     showObservationPoints: true,
@@ -20,6 +21,7 @@ export default function Explorer() {
 
   const [showArgo, setShowArgo] = useState(true);
   const [showGliders, setShowGliders] = useState(false);
+  const [showCurrents, setShowCurrents] = useState(true);
   const [selectedPoint, setSelectedPoint] = useState(mockObservationPoints[0]);
   const [measurements, setMeasurements] = useState(
     mockObservationPoints[0].measurements[controls.parameter]
@@ -76,7 +78,7 @@ export default function Explorer() {
   const handleReset = () => {
     setControls({
       parameter: 'temperature',
-      depth: 1000,
+      depth: 200,
       time: new Date(),
       visualizationMode: 'surface',
       showObservationPoints: true,
@@ -96,11 +98,8 @@ export default function Explorer() {
     setShowGliders(!showGliders);
   };
 
-  const handlePointSelect = (pointId: string) => {
-    const point = mockObservationPoints.find(p => p.id === pointId);
-    if (point) {
-      setSelectedPoint(point);
-    }
+  const handleToggleCurrents = () => {
+    setShowCurrents(!showCurrents);
   };
 
   return (
@@ -124,6 +123,7 @@ export default function Explorer() {
             isPlaying={controls.isPlaying}
             showArgo={showArgo}
             showGliders={showGliders}
+            showCurrents={showCurrents}
             onParameterChange={handleParameterChange}
             onDepthChange={handleDepthChange}
             onTimeChange={handleTimeChange}
@@ -133,38 +133,20 @@ export default function Explorer() {
             onReset={handleReset}
             onToggleArgo={handleToggleArgo}
             onToggleGliders={handleToggleGliders}
+            onToggleCurrents={handleToggleCurrents}
           />
         </div>
 
-        {/* Center 3D Visualization */}
+        {/* Center Hybrid Visualization */}
         <div className="explorer-viewport">
-          <OceanScene 
-            parameter={controls.parameter} 
+          <GeographicMap />
+          <OceanWebGL
+            parameter={controls.parameter}
+            depth={controls.depth}
             showArgo={showArgo}
             showGliders={showGliders}
-            depth={controls.depth}
+            showCurrents={showCurrents}
           />
-          
-          {/* Observation Points Overlay */}
-          {controls.showObservationPoints && (
-            <div className="observation-points-overlay">
-              {mockObservationPoints.map((point) => (
-                <button
-                  key={point.id}
-                  className={`observation-point ${selectedPoint?.id === point.id ? 'active' : ''}`}
-                  onClick={() => handlePointSelect(point.id)}
-                  style={{
-                    left: `${((point.longitude + 180) / 360) * 100}%`,
-                    top: `${((90 - point.latitude) / 180) * 100}%`
-                  }}
-                  title={point.name}
-                >
-                  <div className="point-marker" />
-                  <span className="point-label">{point.name}</span>
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Right Data Panel */}
