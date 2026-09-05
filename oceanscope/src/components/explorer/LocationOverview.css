@@ -103,10 +103,83 @@
   color: #00d4ff;
 }
 
+.ocean-category-badge {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.12);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
 .quick-loc-btn.active {
   background: rgba(0, 212, 255, 0.3);
   border-color: #00d4ff;
   color: #ffffff;
+}
+
+.all-oceans-dropdown-wrapper {
+  position: relative;
+}
+
+.dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.all-oceans-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 220px;
+  background: rgba(10, 22, 40, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.65);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  z-index: 200;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.ocean-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  border: none;
+  color: #c0d8e8;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.18s ease;
+}
+
+.ocean-menu-item:hover {
+  background: rgba(0, 212, 255, 0.15);
+  color: #00d4ff;
+}
+
+.ocean-menu-item.selected {
+  background: rgba(0, 212, 255, 0.25);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.ocean-menu-item .item-cat {
+  font-size: 9px;
+  color: #7a9cae;
+  text-transform: uppercase;
 }
 
 @keyframes spin {

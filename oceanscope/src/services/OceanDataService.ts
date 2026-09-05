@@ -213,6 +213,7 @@ export class OceanDataService {
   // Generate demo observation data matching reference image
   private generateDemoObservationData(_params: any): ObservationData[] {
     return [
+      // --- BAY OF BENGAL (Indian Ocean) ---
       {
         id: 'ARGO_IND_0045',
         platformId: 'ARGO_IND_0045',
@@ -343,6 +344,346 @@ export class OceanDataService {
           salinity: 34.8,
           oxygen: 3.5
         }
+      },
+
+      // --- ARABIAN SEA (High Salinity & Somali Jet) ---
+      {
+        id: 'ARGO_IND_0210',
+        platformId: 'ARGO_IND_0210',
+        platformType: 'argo',
+        latitude: 16.4,
+        longitude: 64.2,
+        timestamp: new Date('2024-10-15T09:10:00Z'),
+        depth: 250,
+        status: 'ANOMALY DETECTED',
+        modelTemperature: 26.2,
+        observedTemperature: 28.4,
+        difference: 2.2,
+        variables: {
+          temperature: 28.4,
+          salinity: 36.8, // High salinity signature
+          oxygen: 4.6,
+          chlorophyll: 1.8
+        },
+        profile: [
+          { depth: 0, model: 29.5, observed: 30.1, difference: 0.6 },
+          { depth: 50, model: 28.8, observed: 29.6, difference: 0.8 },
+          { depth: 100, model: 27.5, observed: 28.9, difference: 1.4, isAnomaly: true },
+          { depth: 150, model: 26.8, observed: 28.7, difference: 1.9, isAnomaly: true },
+          { depth: 200, model: 26.4, observed: 28.5, difference: 2.1, isAnomaly: true },
+          { depth: 250, model: 26.2, observed: 28.4, difference: 2.2, isAnomaly: true },
+          { depth: 300, model: 24.5, observed: 25.1, difference: 0.6 }
+        ]
+      },
+      {
+        id: 'ARGO_IND_0225',
+        platformId: 'ARGO_IND_0225',
+        platformType: 'argo',
+        latitude: 18.5,
+        longitude: 58.2,
+        timestamp: new Date('2024-10-15T06:45:00Z'),
+        depth: 150,
+        status: 'UPWELLING DETECTED',
+        modelTemperature: 25.8,
+        observedTemperature: 23.9,
+        difference: -1.9,
+        variables: {
+          temperature: 23.9,
+          salinity: 36.2,
+          oxygen: 6.1,
+          chlorophyll: 3.4
+        }
+      },
+      {
+        id: 'GLIDER_055',
+        platformId: 'GLIDER_055',
+        platformType: 'glider',
+        latitude: 14.8,
+        longitude: 68.5,
+        timestamp: new Date('2024-10-15T07:30:00Z'),
+        depth: 950,
+        status: 'NORMAL',
+        modelTemperature: 9.8,
+        observedTemperature: 9.9,
+        difference: 0.1,
+        variables: {
+          temperature: 9.9,
+          salinity: 35.6,
+          oxygen: 3.2
+        }
+      },
+
+      // --- EQUATORIAL INDIAN OCEAN (Wyrtki Jet) ---
+      {
+        id: 'ARGO_IND_0340',
+        platformId: 'ARGO_IND_0340',
+        platformType: 'argo',
+        latitude: 0.4,
+        longitude: 80.5,
+        timestamp: new Date('2024-10-15T08:50:00Z'),
+        depth: 180,
+        status: 'NORMAL',
+        modelTemperature: 28.8,
+        observedTemperature: 29.2,
+        difference: 0.4,
+        variables: {
+          temperature: 29.2,
+          salinity: 35.1,
+          oxygen: 4.9,
+          chlorophyll: 0.9
+        },
+        profile: [
+          { depth: 0, model: 30.1, observed: 30.3 },
+          { depth: 50, model: 29.6, observed: 29.8 },
+          { depth: 100, model: 29.2, observed: 29.5 },
+          { depth: 180, model: 28.8, observed: 29.2 },
+          { depth: 250, model: 25.5, observed: 25.8 }
+        ]
+      },
+
+      // --- NORTH ATLANTIC (Gulf Stream & AMOC) ---
+      {
+        id: 'ARGO_ATL_0112',
+        platformId: 'ARGO_ATL_0112',
+        platformType: 'argo',
+        latitude: 35.2,
+        longitude: -68.4,
+        timestamp: new Date('2024-10-15T09:15:00Z'),
+        depth: 220,
+        status: 'ANOMALY DETECTED',
+        modelTemperature: 22.8,
+        observedTemperature: 24.6,
+        difference: 1.8,
+        variables: {
+          temperature: 24.6,
+          salinity: 36.4,
+          oxygen: 5.4,
+          chlorophyll: 1.1
+        },
+        profile: [
+          { depth: 0, model: 26.5, observed: 27.1, difference: 0.6 },
+          { depth: 50, model: 25.8, observed: 26.6, difference: 0.8 },
+          { depth: 100, model: 24.9, observed: 26.2, difference: 1.3, isAnomaly: true },
+          { depth: 150, model: 23.8, observed: 25.5, difference: 1.7, isAnomaly: true },
+          { depth: 220, model: 22.8, observed: 24.6, difference: 1.8, isAnomaly: true },
+          { depth: 300, model: 20.2, observed: 20.9, difference: 0.7 }
+        ]
+      },
+      {
+        id: 'ARGO_ATL_0145',
+        platformId: 'ARGO_ATL_0145',
+        platformType: 'argo',
+        latitude: 28.5,
+        longitude: -61.2,
+        timestamp: new Date('2024-10-15T06:30:00Z'),
+        depth: 450,
+        status: 'NORMAL',
+        modelTemperature: 18.5,
+        observedTemperature: 18.7,
+        difference: 0.2,
+        variables: {
+          temperature: 18.7,
+          salinity: 36.6,
+          oxygen: 5.0,
+          chlorophyll: 0.4
+        }
+      },
+      {
+        id: 'GLIDER_ATL_01',
+        platformId: 'GLIDER_ATL_01',
+        platformType: 'glider',
+        latitude: 38.0,
+        longitude: -63.5,
+        timestamp: new Date('2024-10-15T08:45:00Z'),
+        depth: 1200,
+        status: 'NORMAL',
+        modelTemperature: 6.2,
+        observedTemperature: 6.0,
+        difference: -0.2,
+        variables: {
+          temperature: 6.0,
+          salinity: 35.0,
+          oxygen: 4.8
+        }
+      },
+
+      // --- SOUTH ATLANTIC (Benguela & Brazil Basin) ---
+      {
+        id: 'ARGO_ATL_0428',
+        platformId: 'ARGO_ATL_0428',
+        platformType: 'argo',
+        latitude: -24.2,
+        longitude: 11.5,
+        timestamp: new Date('2024-10-15T07:50:00Z'),
+        depth: 180,
+        status: 'UPWELLING DETECTED',
+        modelTemperature: 18.2,
+        observedTemperature: 16.5,
+        difference: -1.7,
+        variables: {
+          temperature: 16.5,
+          salinity: 35.2,
+          oxygen: 5.8,
+          chlorophyll: 2.9
+        },
+        profile: [
+          { depth: 0, model: 21.5, observed: 20.2, difference: -1.3 },
+          { depth: 50, model: 19.8, observed: 18.1, difference: -1.7, isAnomaly: true },
+          { depth: 100, model: 18.9, observed: 17.2, difference: -1.7, isAnomaly: true },
+          { depth: 180, model: 18.2, observed: 16.5, difference: -1.7, isAnomaly: true },
+          { depth: 300, model: 14.5, observed: 14.2, difference: -0.3 }
+        ]
+      },
+
+      // --- NORTH PACIFIC (Kuroshio & Subtropical Gyre) ---
+      {
+        id: 'ARGO_PAC_0088',
+        platformId: 'ARGO_PAC_0088',
+        platformType: 'argo',
+        latitude: 33.2,
+        longitude: 139.5,
+        timestamp: new Date('2024-10-15T09:00:00Z'),
+        depth: 200,
+        status: 'ANOMALY DETECTED',
+        modelTemperature: 23.1,
+        observedTemperature: 24.9,
+        difference: 1.8,
+        variables: {
+          temperature: 24.9,
+          salinity: 34.8,
+          oxygen: 5.1,
+          chlorophyll: 1.3
+        },
+        profile: [
+          { depth: 0, model: 27.5, observed: 28.1, difference: 0.6 },
+          { depth: 50, model: 26.2, observed: 27.2, difference: 1.0 },
+          { depth: 100, model: 24.8, observed: 26.4, difference: 1.6, isAnomaly: true },
+          { depth: 150, model: 23.9, observed: 25.7, difference: 1.8, isAnomaly: true },
+          { depth: 200, model: 23.1, observed: 24.9, difference: 1.8, isAnomaly: true },
+          { depth: 300, model: 19.5, observed: 20.1, difference: 0.6 }
+        ]
+      },
+      {
+        id: 'ARGO_PAC_0142',
+        platformId: 'ARGO_PAC_0142',
+        platformType: 'argo',
+        latitude: 22.5,
+        longitude: 145.0,
+        timestamp: new Date('2024-10-15T06:15:00Z'),
+        depth: 750,
+        status: 'NORMAL',
+        modelTemperature: 12.4,
+        observedTemperature: 12.6,
+        difference: 0.2,
+        variables: {
+          temperature: 12.6,
+          salinity: 34.9,
+          oxygen: 4.5
+        }
+      },
+      {
+        id: 'GLIDER_PAC_02',
+        platformId: 'GLIDER_PAC_02',
+        platformType: 'glider',
+        latitude: 35.8,
+        longitude: 146.5,
+        timestamp: new Date('2024-10-15T08:20:00Z'),
+        depth: 1400,
+        status: 'NORMAL',
+        modelTemperature: 4.8,
+        observedTemperature: 4.7,
+        difference: -0.1,
+        variables: {
+          temperature: 4.7,
+          salinity: 34.6,
+          oxygen: 3.8
+        }
+      },
+
+      // --- SOUTH PACIFIC (Humboldt Upwelling System) ---
+      {
+        id: 'ARGO_PAC_0572',
+        platformId: 'ARGO_PAC_0572',
+        platformType: 'argo',
+        latitude: -18.5,
+        longitude: -78.4,
+        timestamp: new Date('2024-10-15T08:10:00Z'),
+        depth: 160,
+        status: 'UPWELLING DETECTED',
+        modelTemperature: 18.5,
+        observedTemperature: 16.8,
+        difference: -1.7,
+        variables: {
+          temperature: 16.8,
+          salinity: 35.0,
+          oxygen: 5.6,
+          chlorophyll: 3.1
+        },
+        profile: [
+          { depth: 0, model: 21.0, observed: 19.8, difference: -1.2 },
+          { depth: 50, model: 19.5, observed: 17.9, difference: -1.6, isAnomaly: true },
+          { depth: 100, model: 18.9, observed: 17.2, difference: -1.7, isAnomaly: true },
+          { depth: 160, model: 18.5, observed: 16.8, difference: -1.7, isAnomaly: true },
+          { depth: 250, model: 15.0, observed: 14.8, difference: -0.2 }
+        ]
+      },
+
+      // --- SOUTHERN OCEAN (Antarctic ACC) ---
+      {
+        id: 'ARGO_SO_0019',
+        platformId: 'ARGO_SO_0019',
+        platformType: 'argo',
+        latitude: -55.2,
+        longitude: 58.4,
+        timestamp: new Date('2024-10-15T07:40:00Z'),
+        depth: 300,
+        status: 'NORMAL',
+        modelTemperature: 2.4,
+        observedTemperature: 2.6,
+        difference: 0.2,
+        variables: {
+          temperature: 2.6,
+          salinity: 34.1,
+          oxygen: 7.2, // Highly oxygenated polar water
+          chlorophyll: 0.8
+        },
+        profile: [
+          { depth: 0, model: 4.1, observed: 4.2 },
+          { depth: 50, model: 3.5, observed: 3.6 },
+          { depth: 100, model: 2.9, observed: 3.1 },
+          { depth: 200, model: 2.6, observed: 2.8 },
+          { depth: 300, model: 2.4, observed: 2.6 },
+          { depth: 500, model: 1.8, observed: 1.9 }
+        ]
+      },
+
+      // --- ARCTIC OCEAN (Transpolar Drift & Halocline) ---
+      {
+        id: 'ARGO_ARC_0064',
+        platformId: 'ARGO_ARC_0064',
+        platformType: 'argo',
+        latitude: 82.5,
+        longitude: 12.0,
+        timestamp: new Date('2024-10-15T09:20:00Z'),
+        depth: 250,
+        status: 'ANOMALY DETECTED',
+        modelTemperature: -0.2,
+        observedTemperature: 0.9,
+        difference: 1.1, // Arctic warming anomaly
+        variables: {
+          temperature: 0.9,
+          salinity: 33.8, // Fresh polar surface layer
+          oxygen: 7.6,
+          chlorophyll: 0.5
+        },
+        profile: [
+          { depth: 0, model: -1.2, observed: -0.8, difference: 0.4 },
+          { depth: 50, model: -0.8, observed: -0.1, difference: 0.7 },
+          { depth: 100, model: -0.5, observed: 0.5, difference: 1.0, isAnomaly: true },
+          { depth: 180, model: -0.3, observed: 0.8, difference: 1.1, isAnomaly: true },
+          { depth: 250, model: -0.2, observed: 0.9, difference: 1.1, isAnomaly: true },
+          { depth: 400, model: 0.4, observed: 1.0, difference: 0.6 }
+        ]
       }
     ];
   }

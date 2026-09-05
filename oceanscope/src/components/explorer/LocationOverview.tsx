@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
-import { Globe, MapPin } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Globe, MapPin, ChevronDown } from 'lucide-react';
+import { OCEAN_BASINS } from '../../data/oceanBasins';
 import './LocationOverview.css';
 
 interface LocationOverviewProps {
@@ -7,42 +8,16 @@ interface LocationOverviewProps {
   onSelectRegion: (regionKey: string) => void;
 }
 
-const REGION_BOUNDS: Record<string, {
-  name: string;
-  coords: string;
-  bbox: [number, number, number, number]; // [minLon, maxLon, minLat, maxLat]
-}> = {
-  bay_of_bengal: {
-    name: 'Bay of Bengal',
-    coords: '6°N–20°N, 80°E–94°E',
-    bbox: [80.5, 93.5, 5.8, 20.2]
-  },
-  arabian_sea: {
-    name: 'Arabian Sea',
-    coords: '8°N–25°N, 55°E–75°E',
-    bbox: [55.0, 75.0, 8.0, 25.0]
-  },
-  equatorial_indian: {
-    name: 'Equatorial Indian Ocean',
-    coords: '10°S–10°N, 60°E–100°E',
-    bbox: [60.0, 100.0, -10.0, 10.0]
-  },
-  global: {
-    name: 'Global Earth',
-    coords: 'Worldwide Oceans',
-    bbox: [-180, 180, -70, 70]
-  }
-};
-
 export default function LocationOverview({
   currentRegion,
   onSelectRegion
 }: LocationOverviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  const activeInfo = REGION_BOUNDS[currentRegion] || REGION_BOUNDS.bay_of_bengal;
+  const activeBasin = OCEAN_BASINS[currentRegion] || OCEAN_BASINS.bay_of_bengal;
 
-  // Draw lightweight 2D world projection minimap
+  // Draw complete high-fidelity 2D world projection minimap with all continents
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -52,7 +27,7 @@ export default function LocationOverview({
     const w = canvas.width;
     const h = canvas.height;
 
-    // Clear background (Deep space/ocean navy)
+    // Deep space/ocean background
     ctx.fillStyle = '#0a1628';
     ctx.fillRect(0, 0, w, h);
 
@@ -60,55 +35,10 @@ export default function LocationOverview({
     const lonToX = (lon: number) => ((lon + 180) / 360) * w;
     const latToY = (lat: number) => ((90 - lat) / 180) * h;
 
-    // Draw simplified continent landmasses
-    ctx.fillStyle = '#1e3a5f';
-    ctx.strokeStyle = 'rgba(0, 212, 255, 0.2)';
-    ctx.lineWidth = 0.8;
-
-    // Simplified Africa
-    ctx.beginPath();
-    ctx.moveTo(lonToX(-17), latToY(30));
-    ctx.lineTo(lonToX(32), latToY(31));
-    ctx.lineTo(lonToX(50), latToY(12));
-    ctx.lineTo(lonToX(42), latToY(-10));
-    ctx.lineTo(lonToX(20), latToY(-34));
-    ctx.lineTo(lonToX(10), latToY(0));
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // Simplified Eurasia / India
-    ctx.beginPath();
-    ctx.moveTo(lonToX(-10), latToY(36));
-    ctx.lineTo(lonToX(40), latToY(60));
-    ctx.lineTo(lonToX(100), latToY(65));
-    ctx.lineTo(lonToX(140), latToY(50));
-    ctx.lineTo(lonToX(120), latToY(25));
-    ctx.lineTo(lonToX(105), latToY(10));
-    ctx.lineTo(lonToX(92), latToY(20));
-    // India triangle
-    ctx.lineTo(lonToX(82), latToY(25));
-    ctx.lineTo(lonToX(77), latToY(8));
-    ctx.lineTo(lonToX(70), latToY(22));
-    ctx.lineTo(lonToX(55), latToY(25));
-    ctx.lineTo(lonToX(35), latToY(30));
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // Simplified Australia
-    ctx.beginPath();
-    ctx.moveTo(lonToX(115), latToY(-20));
-    ctx.lineTo(lonToX(150), latToY(-15));
-    ctx.lineTo(lonToX(145), latToY(-38));
-    ctx.lineTo(lonToX(115), latToY(-32));
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
     // Lat/Lon subtle grid lines
     ctx.strokeStyle = 'rgba(0, 212, 255, 0.1)';
     ctx.lineWidth = 0.5;
+
     // Equator
     const eqY = latToY(0);
     ctx.beginPath();
@@ -116,8 +46,118 @@ export default function LocationOverview({
     ctx.lineTo(w, eqY);
     ctx.stroke();
 
+    // Tropics
+    const tropicNY = latToY(23.5);
+    const tropicSY = latToY(-23.5);
+    ctx.beginPath();
+    ctx.moveTo(0, tropicNY);
+    ctx.lineTo(w, tropicNY);
+    ctx.moveTo(0, tropicSY);
+    ctx.lineTo(w, tropicSY);
+    ctx.stroke();
+
+    // Prime Meridian
+    const pmX = lonToX(0);
+    ctx.beginPath();
+    ctx.moveTo(pmX, 0);
+    ctx.lineTo(pmX, h);
+    ctx.stroke();
+
+    ctx.fillStyle = '#1e3a5f';
+    ctx.strokeStyle = 'rgba(0, 212, 255, 0.35)';
+    ctx.lineWidth = 0.8;
+
+    // 1. North America
+    ctx.beginPath();
+    ctx.moveTo(lonToX(-165), latToY(65)); // Alaska
+    ctx.lineTo(lonToX(-140), latToY(70));
+    ctx.lineTo(lonToX(-90), latToY(72));  // Canada north
+    ctx.lineTo(lonToX(-60), latToY(60));  // Labrador
+    ctx.lineTo(lonToX(-65), latToY(45));  // New England
+    ctx.lineTo(lonToX(-80), latToY(25));  // Florida
+    ctx.lineTo(lonToX(-90), latToY(30));  // Gulf
+    ctx.lineTo(lonToX(-97), latToY(20));  // Mexico
+    ctx.lineTo(lonToX(-85), latToY(10));  // Central America
+    ctx.lineTo(lonToX(-105), latToY(20));
+    ctx.lineTo(lonToX(-120), latToY(35)); // California
+    ctx.lineTo(lonToX(-130), latToY(50)); // Pacific NW
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // 2. South America
+    ctx.beginPath();
+    ctx.moveTo(lonToX(-78), latToY(10));  // Panama border
+    ctx.lineTo(lonToX(-60), latToY(10));  // Venezuela
+    ctx.lineTo(lonToX(-35), latToY(-5));  // Brazil bulge
+    ctx.lineTo(lonToX(-40), latToY(-22)); // Rio
+    ctx.lineTo(lonToX(-60), latToY(-38)); // Argentina
+    ctx.lineTo(lonToX(-70), latToY(-54)); // Cape Horn
+    ctx.lineTo(lonToX(-75), latToY(-42)); // Chile
+    ctx.lineTo(lonToX(-80), latToY(-10)); // Peru
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // 3. Africa
+    ctx.beginPath();
+    ctx.moveTo(lonToX(-17), latToY(30));
+    ctx.lineTo(lonToX(32), latToY(31));
+    ctx.lineTo(lonToX(50), latToY(12));
+    ctx.lineTo(lonToX(42), latToY(-10));
+    ctx.lineTo(lonToX(28), latToY(-34));
+    ctx.lineTo(lonToX(18), latToY(-34));
+    ctx.lineTo(lonToX(10), latToY(0));
+    ctx.lineTo(lonToX(-15), latToY(15));
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // 4. Eurasia & India
+    ctx.beginPath();
+    ctx.moveTo(lonToX(-10), latToY(36));  // Spain
+    ctx.lineTo(lonToX(10), latToY(55));   // Northern Europe
+    ctx.lineTo(lonToX(30), latToY(70));   // Scandinavia
+    ctx.lineTo(lonToX(80), latToY(72));   // Siberia
+    ctx.lineTo(lonToX(150), latToY(68));
+    ctx.lineTo(lonToX(170), latToY(65));  // Bering
+    ctx.lineTo(lonToX(140), latToY(45));  // Sea of Japan
+    ctx.lineTo(lonToX(120), latToY(30));  // China
+    ctx.lineTo(lonToX(105), latToY(10));  // SE Asia
+    ctx.lineTo(lonToX(92), latToY(20));   // Bay of Bengal coast
+    // India sub-continent
+    ctx.lineTo(lonToX(82), latToY(25));
+    ctx.lineTo(lonToX(78), latToY(8));    // Kanyakumari
+    ctx.lineTo(lonToX(72), latToY(20));   // Arabian Sea coast
+    ctx.lineTo(lonToX(58), latToY(25));   // Oman/Persian Gulf
+    ctx.lineTo(lonToX(35), latToY(32));   // Mediterranean Levant
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // 5. Australia
+    ctx.beginPath();
+    ctx.moveTo(lonToX(115), latToY(-20));
+    ctx.lineTo(lonToX(145), latToY(-12));
+    ctx.lineTo(lonToX(152), latToY(-32));
+    ctx.lineTo(lonToX(142), latToY(-38));
+    ctx.lineTo(lonToX(115), latToY(-34));
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // 6. Antarctica (Southern strip)
+    ctx.beginPath();
+    ctx.moveTo(lonToX(-180), latToY(-70));
+    ctx.lineTo(lonToX(180), latToY(-70));
+    ctx.lineTo(lonToX(180), latToY(-90));
+    ctx.lineTo(lonToX(-180), latToY(-90));
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
     // Highlighted Active Bounding Box on Minimap
-    const bbox = activeInfo.bbox;
+    const bbox = activeBasin.bbox;
     const x1 = lonToX(bbox[0]);
     const x2 = lonToX(bbox[1]);
     const y1 = latToY(bbox[3]); // maxLat (higher up)
@@ -126,8 +166,8 @@ export default function LocationOverview({
     const boxW = Math.max(8, x2 - x1);
     const boxH = Math.max(6, y2 - y1);
 
-    // Glowing target rectangle
-    ctx.fillStyle = 'rgba(0, 212, 255, 0.25)';
+    // Glowing target box
+    ctx.fillStyle = 'rgba(0, 212, 255, 0.28)';
     ctx.fillRect(x1, y1, boxW, boxH);
 
     ctx.strokeStyle = '#00d4ff';
@@ -142,7 +182,7 @@ export default function LocationOverview({
     ctx.arc(cx, cy, 3, 0, Math.PI * 2);
     ctx.fillStyle = '#ff4d4f';
     ctx.fill();
-  }, [currentRegion, activeInfo]);
+  }, [currentRegion, activeBasin]);
 
   return (
     <div className="location-overview-card">
@@ -164,21 +204,51 @@ export default function LocationOverview({
       <div className="location-details">
         <div className="location-header-row">
           <MapPin size={14} className="pin-icon" />
-          <span className="location-name">{activeInfo.name}</span>
+          <span className="location-name">{activeBasin.name}</span>
+          <span className="ocean-category-badge">{activeBasin.oceanCategory}</span>
         </div>
-        <div className="location-coords">{activeInfo.coords}</div>
+        <div className="location-coords">{activeBasin.coordsLabel}</div>
         
-        {/* Quick Region Switcher Buttons */}
+        {/* Quick Region Switcher & Dropdown */}
         <div className="location-quick-links">
-          {Object.keys(REGION_BOUNDS).map((key) => (
+          {['bay_of_bengal', 'arabian_sea', 'north_atlantic', 'north_pacific'].map((key) => (
             <button
               key={key}
               className={`quick-loc-btn ${currentRegion === key ? 'active' : ''}`}
               onClick={() => onSelectRegion(key)}
             >
-              {REGION_BOUNDS[key].name.split(' ')[0]}
+              {OCEAN_BASINS[key]?.shortName || key}
             </button>
           ))}
+
+          {/* All Oceans Dropdown Menu */}
+          <div className="all-oceans-dropdown-wrapper">
+            <button 
+              className={`quick-loc-btn dropdown-trigger ${!['bay_of_bengal', 'arabian_sea', 'north_atlantic', 'north_pacific'].includes(currentRegion) ? 'active' : ''}`}
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            >
+              <span>All Oceans</span>
+              <ChevronDown size={11} />
+            </button>
+
+            {isDropdownOpen && (
+              <div className="all-oceans-menu">
+                {Object.entries(OCEAN_BASINS).map(([key, basin]) => (
+                  <button
+                    key={key}
+                    className={`ocean-menu-item ${currentRegion === key ? 'selected' : ''}`}
+                    onClick={() => {
+                      onSelectRegion(key);
+                      setIsDropdownOpen(false);
+                    }}
+                  >
+                    <span className="item-name">{basin.name}</span>
+                    <span className="item-cat">{basin.oceanCategory}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

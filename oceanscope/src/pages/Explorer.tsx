@@ -7,6 +7,7 @@ import OceanInsightPanel from '../components/indian-ocean/OceanInsightPanel';
 import Timeline from '../components/ocean/Timeline';
 import type { ObservationData } from '../services/OceanDataService';
 import { oceanDataService } from '../services/OceanDataService';
+import { OCEAN_BASINS } from '../data/oceanBasins';
 import './Explorer.css';
 
 export default function Explorer() {
@@ -68,6 +69,20 @@ export default function Explorer() {
     }
   };
 
+  const handleRegionChange = (newRegion: string) => {
+    setActiveRegion(newRegion);
+    const basin = OCEAN_BASINS[newRegion];
+    if (basin && basin.primaryObservationId) {
+      const match = defaultObservations.find(o => o.id === basin.primaryObservationId);
+      if (match) {
+        setSelectedObservation(match);
+        if (match.depth) {
+          setDepth(match.depth);
+        }
+      }
+    }
+  };
+
   return (
     <div className="explorer-page-fullscreen">
       {/* 1. Main 3D CesiumJS + WebGL Ocean Viewport */}
@@ -83,7 +98,7 @@ export default function Explorer() {
           selectedObservationId={selectedObservation?.id}
           onSelectObservation={handleSelectObservation}
           activeRegion={activeRegion}
-          onRegionChange={setActiveRegion}
+          onRegionChange={handleRegionChange}
         />
       </div>
 
@@ -91,7 +106,7 @@ export default function Explorer() {
       <div className="top-location-overview-wrapper">
         <LocationOverview
           currentRegion={activeRegion}
-          onSelectRegion={(reg) => setActiveRegion(reg)}
+          onSelectRegion={handleRegionChange}
         />
       </div>
 

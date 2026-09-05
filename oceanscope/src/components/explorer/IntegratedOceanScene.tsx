@@ -5,12 +5,15 @@ import {
   ZoomIn, 
   ZoomOut, 
   Compass, 
+  Move3d,
   Eye, 
   Layers, 
   Maximize2 
 } from 'lucide-react';
+
 import type { ObservationData } from '../../services/OceanDataService';
 import { oceanDataService } from '../../services/OceanDataService';
+import { OCEAN_BASINS } from '../../data/oceanBasins';
 import './IntegratedOceanScene.css';
 
 // Ensure Cesium base URL is set
@@ -32,73 +35,60 @@ export interface IntegratedOceanSceneProps {
   onRegionChange?: (region: string) => void;
 }
 
-// Region camera configurations
-const REGION_PRESETS: Record<string, {
-  name: string;
-  destination: [number, number, number]; // lon, lat, height
-  heading: number;
-  pitch: number;
-  roll: number;
-}> = {
-  bay_of_bengal: {
-    name: 'Bay of Bengal (Reference 3D)',
-    destination: [88.5, 4.2, 1950000],
-    heading: 348,
-    pitch: -38,
-    roll: 0
-  },
-  arabian_sea: {
-    name: 'Arabian Sea',
-    destination: [68.0, 5.0, 2200000],
-    heading: 15,
-    pitch: -42,
-    roll: 0
-  },
-  equatorial_indian: {
-    name: 'Equatorial Indian Ocean',
-    destination: [78.0, -8.0, 3200000],
-    heading: 0,
-    pitch: -50,
-    roll: 0
-  },
-  global: {
-    name: 'Global View',
-    destination: [80.0, 15.0, 9500000],
-    heading: 0,
-    pitch: -88,
-    roll: 0
-  }
-};
-
 /**
  * Generate high-resolution procedural texture for the cutaway depth walls
  * showing realistic thermocline / temperature stratification, depth ticks and labels
  */
-function createCutawayWallTexture(parameter: string): string {
+function createCutawayWallTexture(parameter: string, gradientType: string = 'steep'): string {
   const canvas = document.createElement('canvas');
   canvas.width = 1024;
   canvas.height = 512;
   const ctx = canvas.getContext('2d');
   if (!ctx) return '';
 
-  // Background gradient based on parameter
+  // Background gradient based on parameter & oceanographic region
   const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
 
   if (parameter === 'temperature') {
-    // Reference image thermocline:
-    // Warm reddish-orange at surface (0 - 100m)
-    // Sharp thermocline transition with yellow/teal bands (100m - 500m)
-    // Deep dark ocean navy/indigo (500m - 3000m)
-    grad.addColorStop(0.00, '#ff3b30'); // 30°C surface
-    grad.addColorStop(0.04, '#ff6b4a'); // 28°C
-    grad.addColorStop(0.08, '#fa8c16'); // 26°C
-    grad.addColorStop(0.14, '#ffc069'); // 22°C thermocline entrance
-    grad.addColorStop(0.20, '#52c41a'); // 18°C
-    grad.addColorStop(0.28, '#13c2c2'); // 14°C
-    grad.addColorStop(0.38, '#1890ff'); // 10°C
-    grad.addColorStop(0.55, '#096dd9'); // 6°C
-    grad.addColorStop(0.75, '#003a8c'); // 4°C
-    grad.addColorStop(1.00, '#001529'); // 2°C deep abyssal
+    if (gradientType === 'polar') {
+      // Polar / Arctic / Southern Ocean cold halocline
+      grad.addColorStop(0.00, '#e6f7ff'); // Ice-cold surface
+      grad.addColorStop(0.06, '#bae7ff');
+      grad.addColorStop(0.18, '#69c0ff');
+      grad.addColorStop(0.35, '#1890ff');
+      grad.addColorStop(0.65, '#003a8c');
+      grad.addColorStop(1.00, '#001529');
+    } else if (gradientType === 'saline') {
+      // Arabian Sea high-salinity & warm surface
+      grad.addColorStop(0.00, '#ff4d4f'); // 30°C surface
+      grad.addColorStop(0.05, '#fa8c16');
+      grad.addColorStop(0.12, '#a0d911'); // Saline core
+      grad.addColorStop(0.22, '#13c2c2');
+      grad.addColorStop(0.40, '#1890ff');
+      grad.addColorStop(0.70, '#003a8c');
+      grad.addColorStop(1.00, '#001529');
+    } else if (gradientType === 'moderate') {
+      // Temperate North/South Atlantic & Pacific
+      grad.addColorStop(0.00, '#ff6b4a'); // ~24-26°C
+      grad.addColorStop(0.06, '#fa8c16');
+      grad.addColorStop(0.16, '#fadb14');
+      grad.addColorStop(0.28, '#13c2c2');
+      grad.addColorStop(0.48, '#1890ff');
+      grad.addColorStop(0.75, '#003a8c');
+      grad.addColorStop(1.00, '#001529');
+    } else {
+      // Tropical steep thermocline (Bay of Bengal reference)
+      grad.addColorStop(0.00, '#ff3b30'); // 30°C surface
+      grad.addColorStop(0.04, '#ff6b4a'); // 28°C
+      grad.addColorStop(0.08, '#fa8c16'); // 26°C
+      grad.addColorStop(0.14, '#ffc069'); // 22°C thermocline entrance
+      grad.addColorStop(0.20, '#52c41a'); // 18°C
+      grad.addColorStop(0.28, '#13c2c2'); // 14°C
+      grad.addColorStop(0.38, '#1890ff'); // 10°C
+      grad.addColorStop(0.55, '#096dd9'); // 6°C
+      grad.addColorStop(0.75, '#003a8c'); // 4°C
+      grad.addColorStop(1.00, '#001529'); // 2°C deep abyssal
+    }
   } else if (parameter === 'salinity') {
     grad.addColorStop(0.00, '#a0d911');
     grad.addColorStop(0.20, '#52c41a');
@@ -344,19 +334,30 @@ export default function IntegratedOceanScene({
         }
       }
 
+      // Configure smooth and safe default mouse/touch camera controller
+      const controller = viewer.scene.screenSpaceCameraController;
+      controller.enableRotate = true;
+      controller.enableTranslate = true;
+      controller.enableZoom = true;
+      controller.enableTilt = true;
+      controller.enableLook = false;
+      controller.minimumZoomDistance = 150000; // 150 km - prevents clipping into the ground/ocean
+      controller.maximumZoomDistance = 12000000; // 12,000 km
+      controller.inertiaSpin = 0.8;
+      controller.inertiaZoom = 0.8;
 
       // Initial camera setup matching reference image
-      const preset = REGION_PRESETS.bay_of_bengal;
+      const initialBasin = OCEAN_BASINS.bay_of_bengal;
       viewer.camera.setView({
         destination: Cesium.Cartesian3.fromDegrees(
-          preset.destination[0],
-          preset.destination[1],
-          preset.destination[2]
+          initialBasin.camera.destination[0],
+          initialBasin.camera.destination[1],
+          initialBasin.camera.destination[2]
         ),
         orientation: {
-          heading: Cesium.Math.toRadians(preset.heading),
-          pitch: Cesium.Math.toRadians(preset.pitch),
-          roll: Cesium.Math.toRadians(preset.roll)
+          heading: Cesium.Math.toRadians(initialBasin.camera.heading),
+          pitch: Cesium.Math.toRadians(initialBasin.camera.pitch),
+          roll: Cesium.Math.toRadians(initialBasin.camera.roll)
         }
       });
 
@@ -404,8 +405,8 @@ export default function IntegratedOceanScene({
 
   // 2. Fly to active region if requested
   useEffect(() => {
-    if (!viewerRef.current || !activeRegion || !REGION_PRESETS[activeRegion]) return;
-    const preset = REGION_PRESETS[activeRegion];
+    if (!viewerRef.current || !activeRegion || !OCEAN_BASINS[activeRegion]) return;
+    const preset = OCEAN_BASINS[activeRegion].camera;
     viewerRef.current.camera.flyTo({
       destination: Cesium.Cartesian3.fromDegrees(
         preset.destination[0],
@@ -432,13 +433,14 @@ export default function IntegratedOceanScene({
 
     const newEntities: Cesium.Entity[] = [];
 
-    // Bay of Bengal Cutaway Bounding Coordinates
-    const lonWest = 80.5;
-    const lonEast = 93.5;
-    const latSouth = 5.8;
-    const latNorth = 20.2;
+    // Active Ocean Basin Configuration
+    const basin = OCEAN_BASINS[activeRegion] || OCEAN_BASINS.bay_of_bengal;
+    const { lonWest, lonEast, latSouth, latNorth } = basin.cutawayBounds;
 
-    const wallTextureUri = createCutawayWallTexture(parameter);
+    const wallTextureUri = createCutawayWallTexture(
+      parameter,
+      basin.thermalProfile.thermoclineGradient
+    );
 
     // ==========================================
     // A. 3D Cutaway Vertical Depth Walls (0m to -3000m)
@@ -446,7 +448,7 @@ export default function IntegratedOceanScene({
 
     // 1. South Front Wall (facing viewer)
     const southWall = viewer.entities.add({
-      name: 'Cutaway South Wall',
+      name: `${basin.name} Cutaway South Wall`,
       wall: {
         positions: Cesium.Cartesian3.fromDegreesArray([
           lonWest, latSouth,
@@ -464,9 +466,9 @@ export default function IntegratedOceanScene({
     });
     newEntities.push(southWall);
 
-    // 2. West Wall (along Sri Lanka & East Coast India)
+    // 2. West Wall
     const westWall = viewer.entities.add({
-      name: 'Cutaway West Wall',
+      name: `${basin.name} Cutaway West Wall`,
       wall: {
         positions: Cesium.Cartesian3.fromDegreesArray([
           lonWest, latNorth,
@@ -484,9 +486,9 @@ export default function IntegratedOceanScene({
     });
     newEntities.push(westWall);
 
-    // 3. East Wall (towards Andaman & Myanmar)
+    // 3. East Wall
     const eastWall = viewer.entities.add({
-      name: 'Cutaway East Wall',
+      name: `${basin.name} Cutaway East Wall`,
       wall: {
         positions: Cesium.Cartesian3.fromDegreesArray([
           lonEast, latSouth,
@@ -504,7 +506,27 @@ export default function IntegratedOceanScene({
     });
     newEntities.push(eastWall);
 
-    // 4. White Wireframe / Outlines for the Cutaway Block Box
+    // 4. North Wall (completing all 4 sides of the cutaway box)
+    const northWall = viewer.entities.add({
+      name: `${basin.name} Cutaway North Wall`,
+      wall: {
+        positions: Cesium.Cartesian3.fromDegreesArray([
+          lonEast, latNorth,
+          (lonWest + lonEast) / 2, latNorth,
+          lonWest, latNorth
+        ]),
+        maximumHeights: [0, 0, 0],
+        minimumHeights: [-maxDepthMeters, -maxDepthMeters, -maxDepthMeters],
+        material: new Cesium.ImageMaterialProperty({
+          image: wallTextureUri,
+          transparent: true,
+          color: Cesium.Color.WHITE.withAlpha(opacity * 0.75)
+        })
+      }
+    });
+    newEntities.push(northWall);
+
+    // 5. White Wireframe / Outlines for the Cutaway Block Box
     const outlinePositions = [
       // Top boundary
       Cesium.Cartesian3.fromDegrees(lonWest, latSouth, 0),
@@ -522,7 +544,7 @@ export default function IntegratedOceanScene({
     ];
 
     const boxOutline = viewer.entities.add({
-      name: 'Cutaway Box Wireframe',
+      name: `${basin.name} Cutaway Box Wireframe`,
       polyline: {
         positions: outlinePositions,
         width: 2.5,
@@ -559,13 +581,25 @@ export default function IntegratedOceanScene({
     });
     newEntities.push(backRightPillar);
 
+    const backLeftPillar = viewer.entities.add({
+      polyline: {
+        positions: [
+          Cesium.Cartesian3.fromDegrees(lonWest, latNorth, 0),
+          Cesium.Cartesian3.fromDegrees(lonWest, latNorth, -maxDepthMeters)
+        ],
+        width: 1.5,
+        material: Cesium.Color.fromCssColorString('#0e4c66')
+      }
+    });
+    newEntities.push(backLeftPillar);
+
     // ==========================================
     // B. Ocean Surface Layer & Active Depth Slice
     // ==========================================
 
     // Ocean Surface Plane (top of cutaway box)
     const oceanSurface = viewer.entities.add({
-      name: 'Ocean Surface',
+      name: `${basin.name} Ocean Surface`,
       polygon: {
         hierarchy: Cesium.Cartesian3.fromDegreesArray([
           lonWest, latSouth,
@@ -602,152 +636,108 @@ export default function IntegratedOceanScene({
     // ==========================================
     // C. 3D Ocean Current Flow Streamlines / Arrows
     // ==========================================
-    if (showCurrents) {
-      // 1. Warm northeastward curved current arrows (red/orange)
-      const warmCurrentCoordinates = [
-        [83.0, 8.5],
-        [85.5, 11.0],
-        [88.0, 13.5],
-        [90.5, 15.2],
-        [92.0, 16.0]
-      ];
-
-      const warmCurrent = viewer.entities.add({
-        name: 'Warm Bay of Bengal Current',
-        polyline: {
-          positions: warmCurrentCoordinates.map(pt => Cesium.Cartesian3.fromDegrees(pt[0], pt[1], 1500)),
-          width: 8,
-          material: new Cesium.PolylineArrowMaterialProperty(
-            Cesium.Color.fromCssColorString('#ff6b4a')
-          )
+    if (showCurrents && basin.currents) {
+      basin.currents.forEach(curr => {
+        if (curr.isUpwelling) {
+          const up = viewer.entities.add({
+            name: curr.name,
+            polyline: {
+              positions: [
+                Cesium.Cartesian3.fromDegrees(curr.coords[0][0], curr.coords[0][1], -(curr.startDepth || 1000) * visualScale),
+                Cesium.Cartesian3.fromDegrees(curr.coords[0][0], curr.coords[0][1], -(curr.endDepth || 350) * visualScale)
+              ],
+              width: curr.width || 8,
+              material: new Cesium.PolylineArrowMaterialProperty(
+                Cesium.Color.fromCssColorString(curr.color)
+              )
+            }
+          });
+          newEntities.push(up);
+        } else if (curr.isSinking) {
+          const sink = viewer.entities.add({
+            name: curr.name,
+            polyline: {
+              positions: [
+                Cesium.Cartesian3.fromDegrees(curr.coords[0][0], curr.coords[0][1], -(curr.startDepth || 100) * visualScale),
+                Cesium.Cartesian3.fromDegrees(curr.coords[0][0], curr.coords[0][1], -(curr.endDepth || 1800) * visualScale)
+              ],
+              width: curr.width || 8,
+              material: new Cesium.PolylineArrowMaterialProperty(
+                Cesium.Color.fromCssColorString(curr.color)
+              )
+            }
+          });
+          newEntities.push(sink);
+        } else if (curr.isSubsurface) {
+          const sub = viewer.entities.add({
+            name: curr.name,
+            polyline: {
+              positions: curr.coords.map(pt => 
+                Cesium.Cartesian3.fromDegrees(pt[0], pt[1], -(curr.depth || 450) * visualScale)
+              ),
+              width: curr.width || 6,
+              material: new Cesium.PolylineArrowMaterialProperty(
+                Cesium.Color.fromCssColorString(curr.color)
+              )
+            }
+          });
+          newEntities.push(sub);
+        } else {
+          const surf = viewer.entities.add({
+            name: curr.name,
+            polyline: {
+              positions: curr.coords.map(pt => Cesium.Cartesian3.fromDegrees(pt[0], pt[1], 1500)),
+              width: curr.width || 8,
+              material: new Cesium.PolylineArrowMaterialProperty(
+                Cesium.Color.fromCssColorString(curr.color)
+              )
+            }
+          });
+          newEntities.push(surf);
         }
       });
-      newEntities.push(warmCurrent);
-
-      // Branching warm current loop
-      const warmCurrentLoop = viewer.entities.add({
-        name: 'Warm Coastal Gyre',
-        polyline: {
-          positions: [
-            [84.5, 12.0],
-            [87.0, 14.5],
-            [90.0, 15.8],
-            [88.5, 17.5],
-            [85.5, 16.8]
-          ].map(pt => Cesium.Cartesian3.fromDegrees(pt[0], pt[1], 1500)),
-          width: 7,
-          material: new Cesium.PolylineArrowMaterialProperty(
-            Cesium.Color.fromCssColorString('#fa8c16')
-          )
-        }
-      });
-      newEntities.push(warmCurrentLoop);
-
-      // 2. Cool cyclonic gyre currents around Sri Lanka (cyan/blue)
-      const coolCurrentSriLanka = viewer.entities.add({
-        name: 'Sri Lanka Dome Current',
-        polyline: {
-          positions: [
-            [81.2, 6.5],
-            [82.8, 8.0],
-            [82.5, 10.5],
-            [81.5, 11.2],
-            [80.8, 9.8]
-          ].map(pt => Cesium.Cartesian3.fromDegrees(pt[0], pt[1], 1500)),
-          width: 7,
-          material: new Cesium.PolylineArrowMaterialProperty(
-            Cesium.Color.fromCssColorString('#00d4ff')
-          )
-        }
-      });
-      newEntities.push(coolCurrentSriLanka);
-
-      // 3. Central Bay cool return current
-      const coolReturnCurrent = viewer.entities.add({
-        name: 'Bay of Bengal Gyre Return',
-        polyline: {
-          positions: [
-            [92.5, 14.0],
-            [90.5, 11.5],
-            [87.5, 9.5],
-            [84.5, 8.0]
-          ].map(pt => Cesium.Cartesian3.fromDegrees(pt[0], pt[1], 1500)),
-          width: 7,
-          material: new Cesium.PolylineArrowMaterialProperty(
-            Cesium.Color.fromCssColorString('#1890ff')
-          )
-        }
-      });
-      newEntities.push(coolReturnCurrent);
-
-      // 4. Subsurface vertical upwelling arrow (cyan vertical vector rising from 1000m to 400m)
-      const upwellingArrow = viewer.entities.add({
-        name: 'Coastal Upwelling Vector',
-        polyline: {
-          positions: [
-            Cesium.Cartesian3.fromDegrees(82.5, 12.0, -1000 * visualScale),
-            Cesium.Cartesian3.fromDegrees(82.5, 12.0, -350 * visualScale)
-          ],
-          width: 8,
-          material: new Cesium.PolylineArrowMaterialProperty(
-            Cesium.Color.fromCssColorString('#00ffff')
-          )
-        }
-      });
-      newEntities.push(upwellingArrow);
-
-      // Subsurface horizontal flow arrows inside the cutaway volume
-      const subsurfaceFlow = viewer.entities.add({
-        name: 'Thermocline Subsurface Flow',
-        polyline: {
-          positions: [
-            Cesium.Cartesian3.fromDegrees(81.5, 7.5, -450 * visualScale),
-            Cesium.Cartesian3.fromDegrees(85.5, 9.0, -500 * visualScale),
-            Cesium.Cartesian3.fromDegrees(89.5, 10.5, -550 * visualScale)
-          ],
-          width: 6,
-          material: new Cesium.PolylineArrowMaterialProperty(
-            Cesium.Color.fromCssColorString('#faad14')
-          )
-        }
-      });
-      newEntities.push(subsurfaceFlow);
     }
 
     // ==========================================
-    // D. Geographic Country & Region Labels
+    // D. Geographic Typography Labels
     // ==========================================
-    const geoLabels = [
-      { text: 'INDIA', lon: 78.8, lat: 17.5, height: 4000, font: 'bold 20px Inter', color: '#ffffff' },
-      { text: 'SRI LANKA', lon: 80.7, lat: 7.8, height: 3000, font: 'bold 16px Inter', color: '#ffffff' },
-      { text: 'Bay of Bengal', lon: 88.5, lat: 14.8, height: 2000, font: 'bold 22px Inter', color: '#00d4ff' },
-      { text: 'BANGLADESH', lon: 90.2, lat: 23.8, height: 4000, font: 'bold 15px Inter', color: '#ffffff' },
-      { text: 'MYANMAR', lon: 95.8, lat: 19.5, height: 4000, font: 'bold 16px Inter', color: '#ffffff' }
-    ];
-
-    geoLabels.forEach(lbl => {
-      const labelEntity = viewer.entities.add({
-        position: Cesium.Cartesian3.fromDegrees(lbl.lon, lbl.lat, lbl.height),
-        label: {
-          text: lbl.text,
-          font: lbl.font,
-          fillColor: Cesium.Color.fromCssColorString(lbl.color),
-          outlineColor: Cesium.Color.fromCssColorString('#0a1628'),
-          outlineWidth: 3,
-          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(100000, 10000000)
-        }
+    if (basin.labels) {
+      basin.labels.forEach(lbl => {
+        const labelEntity = viewer.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(lbl.lon, lbl.lat, lbl.height),
+          label: {
+            text: lbl.text,
+            font: lbl.font || 'bold 18px Inter',
+            fillColor: Cesium.Color.fromCssColorString(lbl.color || '#ffffff'),
+            outlineColor: Cesium.Color.fromCssColorString('#0a1628'),
+            outlineWidth: 3,
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(100000, 16000000)
+          }
+        });
+        newEntities.push(labelEntity);
       });
-      newEntities.push(labelEntity);
-    });
+    }
 
     // ==========================================
     // E. 3D Submerged Sensor Platforms (Argo & Gliders)
     // ==========================================
     const allObservations = oceanDataService['generateDemoObservationData']({});
+    const padLon = 15;
+    const padLat = 12;
 
-    allObservations.forEach(obs => {
+    const visibleObservations = allObservations.filter(obs => {
+      if (activeRegion === 'global') return true;
+      return (
+        obs.longitude >= basin.bbox[0] - padLon &&
+        obs.longitude <= basin.bbox[1] + padLon &&
+        obs.latitude >= basin.bbox[2] - padLat &&
+        obs.latitude <= basin.bbox[3] + padLat
+      );
+    });
+
+    visibleObservations.forEach(obs => {
       const isArgo = obs.platformType === 'argo';
       const isGlider = obs.platformType === 'glider';
 
@@ -803,6 +793,7 @@ export default function IntegratedOceanScene({
     entitiesRef.current = newEntities;
   }, [
     isSceneReady,
+    activeRegion,
     parameter,
     depth,
     showArgo,
@@ -817,29 +808,102 @@ export default function IntegratedOceanScene({
   ]);
 
   // ==========================================
+  // ==========================================
   // Camera Control Actions
   // ==========================================
-  const handleZoom = (delta: number) => {
-    const viewer = viewerRef.current;
-    if (!viewer) return;
-    const camera = viewer.camera;
-    if (delta > 0) {
-      camera.zoomIn(camera.positionCartographic.height * 0.25);
-    } else {
-      camera.zoomOut(camera.positionCartographic.height * 0.25);
+
+  // Compute focal intersection on ocean/globe to rotate/zoom/tilt around
+  const getViewCenter = (viewer: Cesium.Viewer): Cesium.Cartesian3 => {
+    const windowCenter = new Cesium.Cartesian2(
+      viewer.canvas.clientWidth / 2,
+      viewer.canvas.clientHeight / 2
+    );
+    const ray = viewer.camera.getPickRay(windowCenter);
+    let target = ray ? viewer.scene.globe.pick(ray, viewer.scene) : null;
+    if (!target) {
+      const basin = OCEAN_BASINS[activeRegion] || OCEAN_BASINS.bay_of_bengal;
+      const centerLon = (basin.bbox[0] + basin.bbox[1]) / 2;
+      const centerLat = (basin.bbox[2] + basin.bbox[3]) / 2;
+      target = Cesium.Cartesian3.fromDegrees(centerLon, centerLat, 0);
     }
+    return target;
   };
 
-  const handleRotate = (angleDegrees: number) => {
+  // Smooth Zoom In / Zoom Out without jumping or clipping through the globe
+  const handleZoom = (direction: 'in' | 'out', e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     const viewer = viewerRef.current;
     if (!viewer) return;
-    viewer.camera.rotate(Cesium.Cartesian3.UNIT_Z, Cesium.Math.toRadians(angleDegrees));
+
+    const camera = viewer.camera;
+    const center = getViewCenter(viewer);
+    const currentDistance = Cesium.Cartesian3.distance(camera.position, center);
+
+    // Zoom 30% closer or 40% further
+    let targetDistance = direction === 'in' ? currentDistance * 0.7 : currentDistance * 1.4;
+    targetDistance = Cesium.Math.clamp(targetDistance, 250000, 10000000);
+
+    viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(center, 0), {
+      offset: new Cesium.HeadingPitchRange(camera.heading, camera.pitch, targetDistance),
+      duration: 0.45
+    });
   };
 
-  const handleResetCamera = useCallback(() => {
+  // Smooth Orbit / Rotate around the selected ocean focal center
+  const handleRotate = (angleDegrees: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     const viewer = viewerRef.current;
     if (!viewer) return;
-    const preset = REGION_PRESETS.bay_of_bengal;
+
+    const camera = viewer.camera;
+    const center = getViewCenter(viewer);
+    const currentDistance = Cesium.Cartesian3.distance(camera.position, center);
+
+    let newHeading = camera.heading + Cesium.Math.toRadians(angleDegrees);
+    while (newHeading < 0) newHeading += Cesium.Math.TWO_PI;
+    while (newHeading >= Cesium.Math.TWO_PI) newHeading -= Cesium.Math.TWO_PI;
+
+    viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(center, 0), {
+      offset: new Cesium.HeadingPitchRange(newHeading, camera.pitch, currentDistance),
+      duration: 0.5
+    });
+  };
+
+  // Smooth Tilt to change viewing angle between 3D oblique, low-angle side profile, and top-down map
+  const handleTilt = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+
+    const camera = viewer.camera;
+    const center = getViewCenter(viewer);
+    const currentDistance = Cesium.Cartesian3.distance(camera.position, center);
+
+    const currentPitchDeg = Cesium.Math.toDegrees(camera.pitch);
+    let targetPitchDeg: number;
+
+    if (currentPitchDeg < -60) {
+      targetPitchDeg = -38; // Return to reference oblique 3D view
+    } else if (currentPitchDeg < -28) {
+      targetPitchDeg = -18; // Low-angle profile perspective
+    } else {
+      targetPitchDeg = -85; // Top-down map perspective
+    }
+
+    viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(center, 0), {
+      offset: new Cesium.HeadingPitchRange(camera.heading, Cesium.Math.toRadians(targetPitchDeg), currentDistance),
+      duration: 0.55
+    });
+  };
+
+  // Return to exact initial view for the active basin
+  const handleResetCamera = useCallback((e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+
+    const basin = OCEAN_BASINS[activeRegion] || OCEAN_BASINS.bay_of_bengal;
+    const preset = basin.camera;
     viewer.camera.flyTo({
       destination: Cesium.Cartesian3.fromDegrees(
         preset.destination[0],
@@ -851,14 +915,12 @@ export default function IntegratedOceanScene({
         pitch: Cesium.Math.toRadians(preset.pitch),
         roll: Cesium.Math.toRadians(preset.roll)
       },
-      duration: 1.5
+      duration: 1.4
     });
-    if (onRegionChange) {
-      onRegionChange('bay_of_bengal');
-    }
-  }, [onRegionChange]);
+  }, [activeRegion]);
 
-  const handleFullscreen = () => {
+  const handleFullscreen = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (containerRef.current) {
       if (document.fullscreenElement) {
         document.exitFullscreen();
@@ -874,53 +936,61 @@ export default function IntegratedOceanScene({
       <div ref={containerRef} className="cesium-viewport-container" />
 
       {/* Floating 3D Camera Controls Toolbar */}
-      <div className="floating-camera-toolbar">
+      <div className="floating-camera-toolbar" onClick={(e) => e.stopPropagation()}>
         <button 
           className="camera-tool-btn" 
-          onClick={() => handleZoom(1)} 
-          title="Zoom In"
+          onClick={(e) => handleZoom('in', e)} 
+          title="Zoom In (Smooth Glide)"
         >
           <ZoomIn size={16} />
         </button>
         <button 
           className="camera-tool-btn" 
-          onClick={() => handleZoom(-1)} 
-          title="Zoom Out"
+          onClick={(e) => handleZoom('out', e)} 
+          title="Zoom Out (Smooth Glide)"
         >
           <ZoomOut size={16} />
         </button>
         <button 
           className="camera-tool-btn" 
-          onClick={() => handleRotate(15)} 
-          title="Rotate Orbit"
+          onClick={(e) => handleRotate(25, e)} 
+          title="Orbit / Rotate Around Ocean"
         >
           <Compass size={16} />
         </button>
         <button 
           className="camera-tool-btn" 
-          onClick={handleResetCamera} 
+          onClick={(e) => handleTilt(e)} 
+          title="Tilt View Angle (Oblique / Low / Top-down)"
+        >
+          <Move3d size={16} />
+        </button>
+        <button 
+          className="camera-tool-btn" 
+          onClick={(e) => handleResetCamera(e)} 
           title="Reset Reference 3D View"
         >
           <RotateCcw size={16} />
         </button>
         <button 
           className="camera-tool-btn" 
-          onClick={handleFullscreen} 
+          onClick={(e) => handleFullscreen(e)} 
           title="Toggle Fullscreen"
         >
           <Maximize2 size={16} />
         </button>
       </div>
 
-      {/* Quick Ocean Basin Preset Buttons */}
+      {/* Quick Ocean Basin Pill Bar */}
       <div className="ocean-basin-pill-bar">
-        {Object.entries(REGION_PRESETS).map(([key, item]) => (
+        {Object.entries(OCEAN_BASINS).map(([key, item]) => (
           <button
             key={key}
             className={`basin-pill ${activeRegion === key ? 'active' : ''}`}
             onClick={() => onRegionChange && onRegionChange(key)}
+            title={item.name}
           >
-            {item.name}
+            {item.shortName}
           </button>
         ))}
       </div>
