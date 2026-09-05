@@ -1,216 +1,142 @@
 import { useState, useEffect } from 'react';
-import type { OceanParameter, OceanControls as OceanControlsType } from '../types/oceanData';
-import { mockObservationPoints, parameterMetadata } from '../data/mockData';
+import type { OceanParameter } from '../types/oceanData';
 import IntegratedOceanScene from '../components/explorer/IntegratedOceanScene';
 import AdvancedExplorerControls from '../components/explorer/AdvancedExplorerControls';
-import DataPanel from '../components/ocean/DataPanel';
+import LocationOverview from '../components/explorer/LocationOverview';
+import OceanInsightPanel from '../components/indian-ocean/OceanInsightPanel';
 import Timeline from '../components/ocean/Timeline';
-import DepthProfileChart from '../components/ui/DepthProfileChart';
-import type { ColorbarConfig } from '../components/ui/ColorbarEditor';
+import type { ObservationData } from '../services/OceanDataService';
+import { oceanDataService } from '../services/OceanDataService';
 import './Explorer.css';
 
 export default function Explorer() {
-  const [controls, setControls] = useState<OceanControlsType>({
-    parameter: 'temperature',
-    depth: 1500,
-    time: new Date(),
-    visualizationMode: 'volume',
-    showObservationPoints: true,
-    isPlaying: false,
-    animationSpeed: 1
-  });
-
-  const [showArgo, setShowArgo] = useState(true);
-  const [showGliders, setShowGliders] = useState(false);
-  const [showCurrents, setShowCurrents] = useState(true);
-  const [showCTD, setShowCTD] = useState(false);
-  const [showBGC, setShowBGC] = useState(false);
-  const [verticalExaggeration, setVerticalExaggeration] = useState(1);
-  const [selectedPoint, setSelectedPoint] = useState(mockObservationPoints[0]);
-  const [measurements, setMeasurements] = useState(
-    mockObservationPoints[0].measurements[controls.parameter]
-  );
+  const [parameter, setParameter] = useState<OceanParameter>('temperature');
+  const [depth, setDepth] = useState<number>(200);
+  const [time, setTime] = useState<Date>(new Date('2024-10-15T08:30:00Z'));
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
   
-  const [colorbarConfig, setColorbarConfig] = useState<ColorbarConfig>({
-    colorMap: 'temperature',
-    min: 2,
-    max: 32,
-    scale: 'linear',
-    opacity: 0.8,
-    palette: ['#0066cc', '#00d4ff', '#2dd4bf', '#fbbf24', '#ff6b6b']
-  });
+  const [showArgo, setShowArgo] = useState<boolean>(true);
+  const [showGliders, setShowGliders] = useState<boolean>(false);
+  const [showCurrents, setShowCurrents] = useState<boolean>(true);
+  const [showModelObservation, setShowModelObservation] = useState<boolean>(true);
+  const [verticalExaggeration, setVerticalExaggeration] = useState<number>(5);
+  const [activeRegion, setActiveRegion] = useState<string>('bay_of_bengal');
 
+  // Observations from service (defaulting to ARGO_IND_0045 matching the reference image)
+  const defaultObservations = oceanDataService['generateDemoObservationData']({});
+  const [selectedObservation, setSelectedObservation] = useState<ObservationData | undefined>(
+    defaultObservations[0]
+  );
+
+  // Time-lapse playback simulation
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
-    
-    if (controls.isPlaying) {
+    if (isPlaying) {
       interval = setInterval(() => {
-        setControls(prev => ({
-          ...prev,
-          time: new Date(prev.time.getTime() + 3600000)
-        }));
-      }, 1000 / controls.animationSpeed);
+        setTime(prev => new Date(prev.getTime() + 3600000 * 6));
+      }, 1200);
     }
-
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [controls.isPlaying, controls.animationSpeed]);
-
-  useEffect(() => {
-    const point = mockObservationPoints.find(p => p.id === selectedPoint?.id);
-    if (point) {
-      setMeasurements(point.measurements[controls.parameter]);
-    }
-  }, [controls.parameter, selectedPoint]);
+  }, [isPlaying]);
 
   const handleParameterChange = (param: OceanParameter) => {
-    setControls(prev => ({ ...prev, parameter: param }));
+    setParameter(param);
   };
 
-  const handleDepthChange = (depth: number) => {
-    setControls(prev => ({ ...prev, depth }));
-  };
-
-  const handleTimeChange = (time: Date) => {
-    setControls(prev => ({ ...prev, time }));
+  const handleDepthChange = (newDepth: number) => {
+    setDepth(newDepth);
   };
 
   const handlePlayPause = () => {
-    setControls(prev => ({ ...prev, isPlaying: !prev.isPlaying }));
+    setIsPlaying(prev => !prev);
   };
 
-  const handleReset = () => {
-    setControls({
-      parameter: 'temperature',
-      depth: 1500,
-      time: new Date(),
-      visualizationMode: 'surface',
-      showObservationPoints: true,
-      isPlaying: false,
-      animationSpeed: 1
-    });
-    setSelectedPoint(mockObservationPoints[0]);
-    setShowArgo(true);
-    setShowGliders(false);
+  const handleSelectObservation = (obs: ObservationData) => {
+    setSelectedObservation(obs);
+    if (obs.depth) {
+      setDepth(obs.depth);
+    }
   };
 
-  const handleToggleArgo = () => {
-    setShowArgo(!showArgo);
-  };
-
-  const handleToggleGliders = () => {
-    setShowGliders(!showGliders);
-  };
-
-  const handleToggleCurrents = () => {
-    setShowCurrents(!showCurrents);
-  };
-
-  const handleToggleCTD = () => {
-    setShowCTD(!showCTD);
-  };
-
-  const handleToggleBGC = () => {
-    setShowBGC(!showBGC);
-  };
-
-  const handleVerticalExaggerationChange = (value: number) => {
-    setVerticalExaggeration(value);
-  };
-
-  const handleColorbarConfigChange = (config: ColorbarConfig) => {
-    setColorbarConfig(config);
+  const handleSelectPin = (pinId: string) => {
+    if (pinId === 'pin-1' || pinId === 'pin-2') {
+      setSelectedObservation(defaultObservations[0]); // ARGO_IND_0045
+    } else if (pinId === 'pin-4') {
+      setSelectedObservation(defaultObservations[3]); // ARGO_IND_0156 upwelling
+    }
   };
 
   return (
-    <div className="explorer-page">
-      <div className="explorer-header">
-        <h1 className="explorer-title">Ocean Explorer</h1>
-        <p className="explorer-subtitle">
-          Interactive 3D visualization of oceanographic data
-        </p>
+    <div className="explorer-page-fullscreen">
+      {/* 1. Main 3D CesiumJS + WebGL Ocean Viewport */}
+      <div className="fullscreen-3d-viewport">
+        <IntegratedOceanScene
+          parameter={parameter}
+          depth={depth}
+          showArgo={showArgo}
+          showGliders={showGliders}
+          showCurrents={showCurrents}
+          verticalExaggeration={verticalExaggeration}
+          opacity={0.85}
+          selectedObservationId={selectedObservation?.id}
+          onSelectObservation={handleSelectObservation}
+          activeRegion={activeRegion}
+          onRegionChange={setActiveRegion}
+        />
       </div>
 
-      <div className="explorer-layout">
-        {/* Left Control Panel */}
-        <div className="explorer-controls">
-          <AdvancedExplorerControls
-            parameter={controls.parameter}
-            depth={controls.depth}
-            time={controls.time}
-            isPlaying={controls.isPlaying}
-            showArgo={showArgo}
-            showGliders={showGliders}
-            showCurrents={showCurrents}
-            showCTD={showCTD}
-            showBGC={showBGC}
-            verticalExaggeration={verticalExaggeration}
-            colorbarConfig={colorbarConfig}
-            onParameterChange={handleParameterChange}
-            onDepthChange={handleDepthChange}
-            onTimeChange={handleTimeChange}
-            onPlayPause={handlePlayPause}
-            onReset={handleReset}
-            onToggleArgo={handleToggleArgo}
-            onToggleGliders={handleToggleGliders}
-            onToggleCurrents={handleToggleCurrents}
-            onToggleCTD={handleToggleCTD}
-            onToggleBGC={handleToggleBGC}
-            onVerticalExaggerationChange={handleVerticalExaggerationChange}
-            onColorbarConfigChange={handleColorbarConfigChange}
-          />
-        </div>
-
-        {/* Center Integrated 3D Visualization */}
-        <div className="explorer-viewport">
-          <IntegratedOceanScene
-            parameter={controls.parameter}
-            depth={controls.depth}
-            showArgo={showArgo}
-            showGliders={showGliders}
-            showCurrents={showCurrents}
-            verticalExaggeration={verticalExaggeration}
-            opacity={colorbarConfig.opacity}
-          />
-        </div>
-
-        {/* Right Data Panel */}
-        <div className="explorer-data">
-          <DataPanel
-            parameter={controls.parameter}
-            measurements={measurements}
-            selectedPoint={selectedPoint ? {
-              name: selectedPoint.name,
-              latitude: selectedPoint.latitude,
-              longitude: selectedPoint.longitude
-            } : undefined}
-          />
-          
-          {/* Depth Profile Chart */}
-          <DepthProfileChart
-            data={measurements.map(m => ({
-              depth: m.depth,
-              model: m.value + (Math.random() - 0.5) * 2,
-              observed: m.value,
-              timestamp: m.timestamp
-            }))}
-            variable={controls.parameter}
-            unit={parameterMetadata[controls.parameter].unit}
-            title={`${parameterMetadata[controls.parameter].name} Profile`}
-            showAnomaly={true}
-            anomalyThreshold={1.5}
-          />
-        </div>
+      {/* 2. Top World Map / Location Overview (Centered top header) */}
+      <div className="top-location-overview-wrapper">
+        <LocationOverview
+          currentRegion={activeRegion}
+          onSelectRegion={(reg) => setActiveRegion(reg)}
+        />
       </div>
 
-      {/* Bottom Timeline */}
-      <div className="explorer-timeline">
-        <Timeline
-          currentTime={controls.time}
-          onTimeChange={handleTimeChange}
-          isPlaying={controls.isPlaying}
+      {/* 3. Floating Left Scientific Controls Panel */}
+      <div className="floating-left-controls-wrapper">
+        <AdvancedExplorerControls
+          parameter={parameter}
+          depth={depth}
+          time={time}
+          isPlaying={isPlaying}
+          showArgo={showArgo}
+          showGliders={showGliders}
+          showCurrents={showCurrents}
+          showModelObservation={showModelObservation}
+          verticalExaggeration={verticalExaggeration}
+          onParameterChange={handleParameterChange}
+          onDepthChange={handleDepthChange}
+          onTimeChange={setTime}
           onPlayPause={handlePlayPause}
+          onToggleArgo={() => setShowArgo(!showArgo)}
+          onToggleGliders={() => setShowGliders(!showGliders)}
+          onToggleCurrents={() => setShowCurrents(!showCurrents)}
+          onToggleModelObservation={() => setShowModelObservation(!showModelObservation)}
+          onVerticalExaggerationChange={setVerticalExaggeration}
+        />
+      </div>
+
+      {/* 4. Floating Right Ocean Insight Inspection Panel */}
+      {selectedObservation && (
+        <div className="floating-right-insight-wrapper">
+          <OceanInsightPanel
+            observation={selectedObservation}
+            onClose={() => setSelectedObservation(undefined)}
+          />
+        </div>
+      )}
+
+      {/* 5. Floating Bottom Scrubbable Timeline */}
+      <div className="floating-bottom-timeline-wrapper">
+        <Timeline
+          currentTime={time}
+          onTimeChange={setTime}
+          isPlaying={isPlaying}
+          onPlayPause={handlePlayPause}
+          onSelectPin={handleSelectPin}
         />
       </div>
     </div>

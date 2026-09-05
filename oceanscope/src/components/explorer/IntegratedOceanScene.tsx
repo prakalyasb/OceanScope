@@ -1,457 +1,266 @@
-import { useRef, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera, Text } from '@react-three/drei';
-import * as THREE from 'three';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import * as Cesium from 'cesium';
+import { 
+  RotateCcw, 
+  ZoomIn, 
+  ZoomOut, 
+  Compass, 
+  Eye, 
+  Layers, 
+  Maximize2 
+} from 'lucide-react';
+import type { ObservationData } from '../../services/OceanDataService';
+import { oceanDataService } from '../../services/OceanDataService';
 import './IntegratedOceanScene.css';
 
-interface IntegratedOceanSceneProps {
+// Ensure Cesium base URL is set
+if (typeof window !== 'undefined') {
+  (window as any).CESIUM_BASE_URL = '/cesium/';
+}
+
+export interface IntegratedOceanSceneProps {
   parameter: string;
   depth: number;
   showArgo: boolean;
   showGliders: boolean;
   showCurrents: boolean;
-  verticalExaggeration: number;
-  opacity: number;
+  verticalExaggeration?: number;
+  opacity?: number;
+  selectedObservationId?: string;
+  onSelectObservation?: (observation: ObservationData) => void;
+  activeRegion?: string;
+  onRegionChange?: (region: string) => void;
 }
 
-// Geographic map background with correct orientation
-function GeographicMapBackground() {
-  const mapRef = useRef<THREE.Group>(null);
-  
-  useFrame((state) => {
-    if (mapRef.current) {
-      // Subtle slow rotation for visual interest
-      mapRef.current.rotation.y = Math.sin(state.clock.getElapsedTime() * 0.05) * 0.02;
-    }
-  });
+// Region camera configurations
+const REGION_PRESETS: Record<string, {
+  name: string;
+  destination: [number, number, number]; // lon, lat, height
+  heading: number;
+  pitch: number;
+  roll: number;
+}> = {
+  bay_of_bengal: {
+    name: 'Bay of Bengal (Reference 3D)',
+    destination: [88.5, 4.2, 1950000],
+    heading: 348,
+    pitch: -38,
+    roll: 0
+  },
+  arabian_sea: {
+    name: 'Arabian Sea',
+    destination: [68.0, 5.0, 2200000],
+    heading: 15,
+    pitch: -42,
+    roll: 0
+  },
+  equatorial_indian: {
+    name: 'Equatorial Indian Ocean',
+    destination: [78.0, -8.0, 3200000],
+    heading: 0,
+    pitch: -50,
+    roll: 0
+  },
+  global: {
+    name: 'Global View',
+    destination: [80.0, 15.0, 9500000],
+    heading: 0,
+    pitch: -88,
+    roll: 0
+  }
+};
 
-  return (
-    <group ref={mapRef} position={[0, 3, -8]}>
-      {/* Ocean base surface */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[20, 20]} />
-        <meshStandardMaterial
-          color="#1a4d6e"
-          roughness={0.7}
-          metalness={0.1}
-        />
-      </mesh>
-      
-      {/* India landmass */}
-      <mesh position={[0, 0.1, 0]}>
-        <planeGeometry args={[4, 3]} />
-        <meshStandardMaterial color="#2d5a3e" />
-      </mesh>
-      
-      {/* Sri Lanka */}
-      <mesh position={[2.5, 0.1, -1]}>
-        <circleGeometry args={[0.7, 16]} />
-        <meshStandardMaterial color="#2d5a3e" />
-      </mesh>
-      
-      {/* Myanmar */}
-      <mesh position={[4, 0.1, 1.5]}>
-        <planeGeometry args={[2, 1.5]} />
-        <meshStandardMaterial color="#2d5a3e" />
-      </mesh>
-      
-      {/* Bangladesh */}
-      <mesh position={[3.5, 0.1, 2.5]}>
-        <planeGeometry args={[1.5, 1]} />
-        <meshStandardMaterial color="#2d5a3e" />
-      </mesh>
-      
-      {/* Region labels - always facing camera */}
-      <Text
-        position={[0, 0.5, 0]}
-        fontSize={0.4}
-        color="#ffffff"
-        anchorX="center"
-      >
-        India
-      </Text>
-      
-      <Text
-        position={[2.5, 0.3, -1]}
-        fontSize={0.25}
-        color="#ffffff"
-        anchorX="center"
-      >
-        Sri Lanka
-      </Text>
-      
-      <Text
-        position={[4, 0.3, 1.5]}
-        fontSize={0.25}
-        color="#ffffff"
-        anchorX="center"
-      >
-        Myanmar
-      </Text>
-      
-      <Text
-        position={[-3, 0.3, 0]}
-        fontSize={0.35}
-        color="#00d4ff"
-        anchorX="center"
-      >
-        Arabian Sea
-      </Text>
-      
-      <Text
-        position={[3, 0.3, 3]}
-        fontSize={0.35}
-        color="#00d4ff"
-        anchorX="center"
-      >
-        Bay of Bengal
-      </Text>
-      
-      {/* Selected region highlight */}
-      <mesh position={[1, 0.05, 0]}>
-        <circleGeometry args={[2.5, 32]} />
-        <meshStandardMaterial
-          color="#00d4ff"
-          transparent
-          opacity={0.15}
-          side={THREE.DoubleSide}
-        />
-      </mesh>
-    </group>
-  );
-}
+/**
+ * Generate high-resolution procedural texture for the cutaway depth walls
+ * showing realistic thermocline / temperature stratification, depth ticks and labels
+ */
+function createCutawayWallTexture(parameter: string): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
 
-// Ocean surface with realistic waves
-function OceanSurface() {
-  const meshRef = useRef<THREE.Mesh>(null);
-  
-  useFrame((state) => {
-    if (meshRef.current) {
-      const time = state.clock.getElapsedTime();
-      const positions = meshRef.current.geometry.attributes.position;
-      
-      for (let i = 0; i < positions.count; i++) {
-        const x = positions.getX(i);
-        const z = positions.getZ(i);
-        const wave = 
-          Math.sin(x * 0.3 + time * 0.8) * 0.1 + 
-          Math.cos(z * 0.2 + time * 0.6) * 0.08;
-        positions.setY(i, wave);
-      }
-      
-      positions.needsUpdate = true;
-    }
-  });
+  // Background gradient based on parameter
+  const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
 
-  return (
-    <mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
-      <planeGeometry args={[14, 14, 64, 64]} />
-      <meshStandardMaterial
-        color="#4a90d9"
-        transparent
-        opacity={0.7}
-        roughness={0.15}
-        metalness={0.25}
-        side={THREE.DoubleSide}
-      />
-    </mesh>
-  );
-}
+  if (parameter === 'temperature') {
+    // Reference image thermocline:
+    // Warm reddish-orange at surface (0 - 100m)
+    // Sharp thermocline transition with yellow/teal bands (100m - 500m)
+    // Deep dark ocean navy/indigo (500m - 3000m)
+    grad.addColorStop(0.00, '#ff3b30'); // 30°C surface
+    grad.addColorStop(0.04, '#ff6b4a'); // 28°C
+    grad.addColorStop(0.08, '#fa8c16'); // 26°C
+    grad.addColorStop(0.14, '#ffc069'); // 22°C thermocline entrance
+    grad.addColorStop(0.20, '#52c41a'); // 18°C
+    grad.addColorStop(0.28, '#13c2c2'); // 14°C
+    grad.addColorStop(0.38, '#1890ff'); // 10°C
+    grad.addColorStop(0.55, '#096dd9'); // 6°C
+    grad.addColorStop(0.75, '#003a8c'); // 4°C
+    grad.addColorStop(1.00, '#001529'); // 2°C deep abyssal
+  } else if (parameter === 'salinity') {
+    grad.addColorStop(0.00, '#a0d911');
+    grad.addColorStop(0.20, '#52c41a');
+    grad.addColorStop(0.40, '#13c2c2');
+    grad.addColorStop(0.70, '#1890ff');
+    grad.addColorStop(1.00, '#002766');
+  } else {
+    grad.addColorStop(0.00, '#f5222d');
+    grad.addColorStop(0.25, '#fa8c16');
+    grad.addColorStop(0.50, '#13c2c2');
+    grad.addColorStop(0.75, '#1890ff');
+    grad.addColorStop(1.00, '#001529');
+  }
 
-// Underwater cross-section with depth-based gradients
-function UnderwaterCrossSection({ parameter }: { parameter: string }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  
-  const getGradientColors = () => {
-    switch (parameter) {
-      case 'temperature':
-        return [
-          new THREE.Color('#ff6b6b'),
-          new THREE.Color('#fbbf24'),
-          new THREE.Color('#2dd4bf'),
-          new THREE.Color('#00d4ff'),
-          new THREE.Color('#0066cc')
-        ];
-      case 'salinity':
-        return [
-          new THREE.Color('#a3e635'),
-          new THREE.Color('#4ade80'),
-          new THREE.Color('#2dd4bf'),
-          new THREE.Color('#00d4ff'),
-          new THREE.Color('#1e3a5f')
-        ];
-      default:
-        return [
-          new THREE.Color('#ff6b6b'),
-          new THREE.Color('#fbbf24'),
-          new THREE.Color('#2dd4bf'),
-          new THREE.Color('#00d4ff'),
-          new THREE.Color('#0066cc')
-        ];
-    }
-  };
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const gradientColors = getGradientColors();
+  // Subtle horizontal layering noise/stratification lines
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+  ctx.lineWidth = 1;
+  for (let y = 10; y < canvas.height; y += 18) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y);
+    ctx.stroke();
+  }
 
-  const geometry = useMemo(() => {
-    const geo = new THREE.BoxGeometry(14, 6, 14, 50, 25, 50);
-    const positions = geo.attributes.position;
-    const colors = [];
-    
-    for (let i = 0; i < positions.count; i++) {
-      const y = positions.getY(i);
-      const normalizedDepth = (y + 3) / 6;
-      
-      const colorIndex = Math.min(Math.floor(normalizedDepth * 4), 4);
-      const colorFraction = (normalizedDepth * 4) % 1;
-      
-      const tempColor = new THREE.Color();
-      tempColor.lerpColors(gradientColors[colorIndex], gradientColors[Math.min(colorIndex + 1, 4)], colorFraction);
-      
-      colors.push(tempColor.r, tempColor.g, tempColor.b);
-    }
-    
-    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-    return geo;
-  }, [parameter]);
-
-  useFrame((state) => {
-    if (meshRef.current) {
-      const time = state.clock.getElapsedTime();
-      meshRef.current.position.y = Math.sin(time * 0.12) * 0.02;
-    }
-  });
-
-  return (
-    <mesh ref={meshRef} position={[0, -1.5, 0]}>
-      <primitive object={geometry} attach="geometry" />
-      <meshStandardMaterial
-        vertexColors
-        transparent
-        opacity={0.85}
-        side={THREE.DoubleSide}
-        roughness={0.25}
-        metalness={0.1}
-      />
-    </mesh>
-  );
-}
-
-// Depth levels with labels
-function DepthLevels({ currentDepth }: { currentDepth: number }) {
-  const groupRef = useRef<THREE.Group>(null);
-  
-  const levels = [
-    { depth: 0, label: '0m', y: 0 },
-    { depth: 500, label: '500m', y: -0.75 },
-    { depth: 1000, label: '1000m', y: -1.5 },
-    { depth: 2000, label: '2000m', y: -2.25 },
-    { depth: 3000, label: '3000m', y: -3 },
+  // Major depth contour lines and labels (0, 500m, 1000m, 2000m, 3000m)
+  const depthMarks = [
+    { depth: '0', ratio: 0.02 },
+    { depth: '500m', ratio: 0.17 },
+    { depth: '1000m', ratio: 0.33 },
+    { depth: '2000m', ratio: 0.67 },
+    { depth: '3000m', ratio: 0.96 }
   ];
 
-  useFrame((state) => {
-    if (groupRef.current) {
-      groupRef.current.lookAt(state.camera.position);
-    }
+  ctx.font = 'bold 22px Inter, sans-serif';
+  depthMarks.forEach(mark => {
+    const y = mark.ratio * canvas.height;
+
+    // Line
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Tick mark
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(30, y);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(canvas.width - 30, y);
+    ctx.lineTo(canvas.width, y);
+    ctx.stroke();
+
+    // Text Label on left
+    ctx.fillStyle = 'rgba(10, 22, 40, 0.8)';
+    ctx.fillRect(35, y - 16, 110, 30);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(mark.depth, 42, y + 7);
+
+    // Text Label on right
+    ctx.fillStyle = 'rgba(10, 22, 40, 0.8)';
+    ctx.fillRect(canvas.width - 145, y - 16, 110, 30);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(mark.depth, canvas.width - 135, y + 7);
   });
 
-  return (
-    <group ref={groupRef}>
-      {levels.map((level, i) => (
-        <group key={i}>
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, level.y, 0]}>
-            <planeGeometry args={[14, 14, 20, 20]} />
-            <meshStandardMaterial
-              color="#0e4c66"
-              wireframe
-              transparent
-              opacity={0.08}
-            />
-          </mesh>
-          
-          <Text
-            position={[-7.5, level.y, 0]}
-            fontSize={0.35}
-            color={level.depth === currentDepth ? '#00d4ff' : '#7a9cae'}
-            anchorX="center"
-            anchorY="middle"
-          >
-            {level.label}
-          </Text>
-          
-          {level.depth === currentDepth && (
-            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, level.y, 0]}>
-              <planeGeometry args={[14, 14]} />
-              <meshStandardMaterial
-                color="#00d4ff"
-                transparent
-                opacity={0.06}
-                side={THREE.DoubleSide}
-              />
-            </mesh>
-          )}
-        </group>
-      ))}
-    </group>
-  );
+  // Vertical border frame on the edges
+  ctx.strokeStyle = 'rgba(0, 212, 255, 0.8)';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+  return canvas.toDataURL('image/png');
 }
 
-// Animated current arrows
-function CurrentFlows() {
-  const groupRef = useRef<THREE.Group>(null);
-  
-  const currentPaths = useMemo(() => {
-    return Array.from({ length: 8 }, (_, i) => ({
-      points: Array.from({ length: 6 }, (_, j) => ({
-        position: [
-          -5 + (j * 2) + (Math.random() - 0.5) * 2,
-          -0.3 - (i * 0.4) - Math.random() * 0.5,
-          -4 + (j * 1.5) + (Math.random() - 0.5) * 2
-        ] as [number, number, number],
-        speed: 0.4 + Math.random() * 0.3,
-        phase: Math.random() * Math.PI * 2
-      })),
-      color: i % 2 === 0 ? '#ff6b6b' : '#00d4ff'
-    }));
-  }, []);
+/**
+ * Generate diamond icon for Argo floats
+ */
+function createArgoIcon(selected: boolean): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = 48;
+  canvas.height = 48;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
 
-  useFrame((state) => {
-    if (groupRef.current) {
-      const time = state.clock.getElapsedTime();
-      
-      currentPaths.forEach((path, pathIndex) => {
-        const group = groupRef.current?.children[pathIndex] as THREE.Group;
-        if (group) {
-          group.children.forEach((arrow: any, i) => {
-            const currentPoint = path.points[i];
-            const nextPoint = path.points[(i + 1) % path.points.length];
-            
-            const offset = (time * currentPoint.speed + currentPoint.phase) % 1;
-            
-            arrow.position.x = currentPoint.position[0] + (nextPoint.position[0] - currentPoint.position[0]) * offset;
-            arrow.position.y = currentPoint.position[1] + (nextPoint.position[1] - currentPoint.position[1]) * offset;
-            arrow.position.z = currentPoint.position[2] + (nextPoint.position[2] - currentPoint.position[2]) * offset;
-            
-            const dx = nextPoint.position[0] - currentPoint.position[0];
-            const dz = nextPoint.position[2] - currentPoint.position[2];
-            arrow.rotation.y = Math.atan2(dx, dz);
-          });
-        }
-      });
-    }
-  });
+  const cx = 24;
+  const cy = 24;
+  const size = 16;
 
-  return (
-    <group ref={groupRef}>
-      {currentPaths.map((path, i) => (
-        <group key={i}>
-          {path.points.map((point, j) => (
-            <group key={j} position={point.position as [number, number, number]}>
-              <mesh rotation={[0, 0, Math.PI / 2]}>
-                <cylinderGeometry args={[0.06, 0.1, 0.5, 8]} />
-                <meshStandardMaterial 
-                  color={path.color} 
-                  emissive={path.color}
-                  emissiveIntensity={0.4}
-                />
-              </mesh>
-              <mesh position={[0, 0.25, 0]} rotation={[0, 0, Math.PI / 2]}>
-                <coneGeometry args={[0.12, 0.2, 8]} />
-                <meshStandardMaterial 
-                  color={path.color} 
-                  emissive={path.color}
-                  emissiveIntensity={0.5}
-                />
-              </mesh>
-            </group>
-          ))}
-        </group>
-      ))}
-    </group>
-  );
+  // Glow if selected
+  if (selected) {
+    ctx.shadowColor = '#00d4ff';
+    ctx.shadowBlur = 14;
+  }
+
+  // Draw diamond
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - size);
+  ctx.lineTo(cx + size, cy);
+  ctx.lineTo(cx, cy + size);
+  ctx.lineTo(cx - size, cy);
+  ctx.closePath();
+
+  ctx.fillStyle = selected ? '#ffffff' : '#00d4ff';
+  ctx.fill();
+
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = selected ? '#00d4ff' : '#0e4c66';
+  ctx.stroke();
+
+  // Inner dot
+  ctx.beginPath();
+  ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+  ctx.fillStyle = selected ? '#ff4d4f' : '#ffffff';
+  ctx.fill();
+
+  return canvas.toDataURL('image/png');
 }
 
-// Argo and Glider markers
-function ObservationMarkers({ type, show }: { type: 'argo' | 'glider'; show: boolean }) {
-  if (!show) return null;
-  
-  const argoPositions = useMemo(() => [
-    { position: [-3, -0.5, 2] as [number, number, number], id: 'ARGO_IND_0045' },
-    { position: [2, -1.2, -1] as [number, number, number], id: 'ARGO_IND_0089' },
-    { position: [-1, -2, 3] as [number, number, number], id: 'ARGO_IND_0123' },
-    { position: [4, -0.8, 1] as [number, number, number], id: 'ARGO_IND_0156' },
-  ], []);
+/**
+ * Generate triangle icon for Gliders
+ */
+function createGliderIcon(selected: boolean): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = 48;
+  canvas.height = 48;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
 
-  const gliderPositions = useMemo(() => [
-    { position: [3, -1, -2] as [number, number, number], id: 'GLIDER_023' },
-    { position: [-4, -0.3, 1] as [number, number, number], id: 'GLIDER_041' },
-  ], []);
+  const cx = 24;
+  const cy = 24;
+  const size = 16;
 
-  const markers = type === 'argo' ? argoPositions : gliderPositions;
-  const markerColor = type === 'argo' ? '#00d4ff' : '#f472b6';
+  if (selected) {
+    ctx.shadowColor = '#f472b6';
+    ctx.shadowBlur = 14;
+  }
 
-  return (
-    <>
-      {markers.map((marker, i) => (
-        <group key={i} position={marker.position}>
-          {type === 'argo' ? (
-            <>
-              <mesh rotation={[Math.PI / 4, 0, Math.PI / 4]}>
-                <octahedronGeometry args={[0.15, 0]} />
-                <meshStandardMaterial 
-                  color={markerColor} 
-                  emissive={markerColor}
-                  emissiveIntensity={0.6}
-                  roughness={0.2}
-                  metalness={0.8}
-                />
-              </mesh>
-              
-              <mesh position={[0, marker.position[1] / 2, 0]}>
-                <cylinderGeometry args={[0.012, 0.012, Math.abs(marker.position[1]), 8]} />
-                <meshStandardMaterial
-                  color={markerColor}
-                  transparent
-                  opacity={0.4}
-                />
-              </mesh>
-              
-              <mesh position={[0, -marker.position[1], 0]}>
-                <sphereGeometry args={[0.07, 16, 16]} />
-                <meshStandardMaterial
-                  color={markerColor}
-                  transparent
-                  opacity={0.5}
-                />
-              </mesh>
-            </>
-          ) : (
-            <>
-              <mesh rotation={[0, Math.PI / 4, 0]}>
-                <tetrahedronGeometry args={[0.15, 0]} />
-                <meshStandardMaterial 
-                  color={markerColor} 
-                  emissive={markerColor}
-                  emissiveIntensity={0.5}
-                  roughness={0.3}
-                  metalness={0.7}
-                />
-              </mesh>
-              
-              <mesh rotation={[Math.PI / 2, 0, 0]}>
-                <cylinderGeometry args={[0.012, 0.012, 1, 8]} />
-                <meshStandardMaterial
-                  color={markerColor}
-                  transparent
-                  opacity={0.25}
-                />
-              </mesh>
-            </>
-          )}
-        </group>
-      ))}
-    </>
-  );
+  // Draw upward triangle
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - size);
+  ctx.lineTo(cx + size, cy + size * 0.8);
+  ctx.lineTo(cx - size, cy + size * 0.8);
+  ctx.closePath();
+
+  ctx.fillStyle = selected ? '#ffffff' : '#f472b6';
+  ctx.fill();
+
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = selected ? '#f472b6' : '#701a75';
+  ctx.stroke();
+
+  return canvas.toDataURL('image/png');
 }
 
 export default function IntegratedOceanScene({
@@ -460,46 +269,675 @@ export default function IntegratedOceanScene({
   showArgo,
   showGliders,
   showCurrents,
-  verticalExaggeration,
-  opacity
+  verticalExaggeration = 5,
+  opacity = 0.85,
+  selectedObservationId,
+  onSelectObservation,
+  activeRegion = 'bay_of_bengal',
+  onRegionChange
 }: IntegratedOceanSceneProps) {
-  // Suppress unused parameter warnings for future implementation
-  void verticalExaggeration;
-  void opacity;
-  
+  const containerRef = useRef<HTMLDivElement>(null);
+  const viewerRef = useRef<Cesium.Viewer | null>(null);
+  const entitiesRef = useRef<Cesium.Entity[]>([]);
+  const [isSceneReady, setIsSceneReady] = useState(false);
+  const [hoveredEntity, setHoveredEntity] = useState<string | null>(null);
+
+  const onSelectRef = useRef(onSelectObservation);
+  useEffect(() => {
+    onSelectRef.current = onSelectObservation;
+  }, [onSelectObservation]);
+
+
+  // Scaled depth multiplier for visual cutaway visibility
+  const visualScale = Math.max(1, verticalExaggeration) * 120;
+  const maxDepthMeters = 3000 * visualScale;
+  const activeDepthMeters = depth * visualScale;
+
+  // 1. Initialize Cesium Viewer
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    let viewer: Cesium.Viewer;
+
+    try {
+      viewer = new Cesium.Viewer(containerRef.current, {
+        baseLayerPicker: false,
+        geocoder: false,
+        homeButton: false,
+        infoBox: false,
+        sceneModePicker: false,
+        selectionIndicator: false,
+        timeline: false,
+        animation: false,
+        navigationHelpButton: false,
+        fullscreenButton: false,
+        creditContainer: document.createElement('div'),
+        scene3DOnly: true,
+        skyBox: false,
+        contextOptions: {
+          webgl: {
+            alpha: true,
+            preserveDrawingBuffer: true
+          }
+        }
+      });
+
+      viewerRef.current = viewer;
+
+      // Dark space background
+      viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#060d17');
+      if (viewer.scene.globe) {
+        viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#091a2e');
+        viewer.scene.globe.enableLighting = true;
+        viewer.scene.globe.atmosphereBrightnessShift = 0.15;
+        viewer.scene.globe.depthTestAgainstTerrain = false;
+
+        // Add high-resolution satellite imagery
+        try {
+          const esriSatellite = new Cesium.UrlTemplateImageryProvider({
+            url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            maximumLevel: 19
+          });
+          viewer.imageryLayers.addImageryProvider(esriSatellite);
+        } catch {
+          // Automatic fallback to default base layer
+        }
+      }
+
+
+      // Initial camera setup matching reference image
+      const preset = REGION_PRESETS.bay_of_bengal;
+      viewer.camera.setView({
+        destination: Cesium.Cartesian3.fromDegrees(
+          preset.destination[0],
+          preset.destination[1],
+          preset.destination[2]
+        ),
+        orientation: {
+          heading: Cesium.Math.toRadians(preset.heading),
+          pitch: Cesium.Math.toRadians(preset.pitch),
+          roll: Cesium.Math.toRadians(preset.roll)
+        }
+      });
+
+      // Mouse click interaction handler
+      const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+
+      handler.setInputAction((click: any) => {
+        const pickedObject = viewer.scene.pick(click.position);
+        if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.observationData) {
+          const obsData = pickedObject.id.observationData as ObservationData;
+          if (onSelectRef.current) {
+            onSelectRef.current(obsData);
+          }
+
+        }
+      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+      handler.setInputAction((movement: any) => {
+        const pickedObject = viewer.scene.pick(movement.endPosition);
+        if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.observationData) {
+          if (containerRef.current) {
+            containerRef.current.style.cursor = 'pointer';
+          }
+          setHoveredEntity(pickedObject.id.name || null);
+        } else {
+          if (containerRef.current) {
+            containerRef.current.style.cursor = 'default';
+          }
+          setHoveredEntity(null);
+        }
+      }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+      setIsSceneReady(true);
+    } catch (err) {
+      console.error('Failed to initialize Cesium Viewer:', err);
+    }
+
+    return () => {
+      if (viewerRef.current && !viewerRef.current.isDestroyed()) {
+        viewerRef.current.destroy();
+        viewerRef.current = null;
+      }
+    };
+  }, []);
+
+  // 2. Fly to active region if requested
+  useEffect(() => {
+    if (!viewerRef.current || !activeRegion || !REGION_PRESETS[activeRegion]) return;
+    const preset = REGION_PRESETS[activeRegion];
+    viewerRef.current.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(
+        preset.destination[0],
+        preset.destination[1],
+        preset.destination[2]
+      ),
+      orientation: {
+        heading: Cesium.Math.toRadians(preset.heading),
+        pitch: Cesium.Math.toRadians(preset.pitch),
+        roll: Cesium.Math.toRadians(preset.roll)
+      },
+      duration: 1.8
+    });
+  }, [activeRegion]);
+
+  // 3. Render the 3D Subsurface Cutaway Volume, Flow Arrows, and Platforms
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || !isSceneReady) return;
+
+    // Clean up previous entities
+    entitiesRef.current.forEach(entity => viewer.entities.remove(entity));
+    entitiesRef.current = [];
+
+    const newEntities: Cesium.Entity[] = [];
+
+    // Bay of Bengal Cutaway Bounding Coordinates
+    const lonWest = 80.5;
+    const lonEast = 93.5;
+    const latSouth = 5.8;
+    const latNorth = 20.2;
+
+    const wallTextureUri = createCutawayWallTexture(parameter);
+
+    // ==========================================
+    // A. 3D Cutaway Vertical Depth Walls (0m to -3000m)
+    // ==========================================
+
+    // 1. South Front Wall (facing viewer)
+    const southWall = viewer.entities.add({
+      name: 'Cutaway South Wall',
+      wall: {
+        positions: Cesium.Cartesian3.fromDegreesArray([
+          lonWest, latSouth,
+          (lonWest + lonEast) / 2, latSouth,
+          lonEast, latSouth
+        ]),
+        maximumHeights: [0, 0, 0],
+        minimumHeights: [-maxDepthMeters, -maxDepthMeters, -maxDepthMeters],
+        material: new Cesium.ImageMaterialProperty({
+          image: wallTextureUri,
+          transparent: true,
+          color: Cesium.Color.WHITE.withAlpha(opacity)
+        })
+      }
+    });
+    newEntities.push(southWall);
+
+    // 2. West Wall (along Sri Lanka & East Coast India)
+    const westWall = viewer.entities.add({
+      name: 'Cutaway West Wall',
+      wall: {
+        positions: Cesium.Cartesian3.fromDegreesArray([
+          lonWest, latNorth,
+          lonWest, (latNorth + latSouth) / 2,
+          lonWest, latSouth
+        ]),
+        maximumHeights: [0, 0, 0],
+        minimumHeights: [-maxDepthMeters, -maxDepthMeters, -maxDepthMeters],
+        material: new Cesium.ImageMaterialProperty({
+          image: wallTextureUri,
+          transparent: true,
+          color: Cesium.Color.WHITE.withAlpha(opacity)
+        })
+      }
+    });
+    newEntities.push(westWall);
+
+    // 3. East Wall (towards Andaman & Myanmar)
+    const eastWall = viewer.entities.add({
+      name: 'Cutaway East Wall',
+      wall: {
+        positions: Cesium.Cartesian3.fromDegreesArray([
+          lonEast, latSouth,
+          lonEast, (latSouth + latNorth) / 2,
+          lonEast, latNorth
+        ]),
+        maximumHeights: [0, 0, 0],
+        minimumHeights: [-maxDepthMeters, -maxDepthMeters, -maxDepthMeters],
+        material: new Cesium.ImageMaterialProperty({
+          image: wallTextureUri,
+          transparent: true,
+          color: Cesium.Color.WHITE.withAlpha(opacity * 0.85)
+        })
+      }
+    });
+    newEntities.push(eastWall);
+
+    // 4. White Wireframe / Outlines for the Cutaway Block Box
+    const outlinePositions = [
+      // Top boundary
+      Cesium.Cartesian3.fromDegrees(lonWest, latSouth, 0),
+      Cesium.Cartesian3.fromDegrees(lonEast, latSouth, 0),
+      Cesium.Cartesian3.fromDegrees(lonEast, latNorth, 0),
+      Cesium.Cartesian3.fromDegrees(lonWest, latNorth, 0),
+      Cesium.Cartesian3.fromDegrees(lonWest, latSouth, 0),
+      // Front-left vertical pillar down to bottom
+      Cesium.Cartesian3.fromDegrees(lonWest, latSouth, -maxDepthMeters),
+      // Bottom boundary
+      Cesium.Cartesian3.fromDegrees(lonEast, latSouth, -maxDepthMeters),
+      Cesium.Cartesian3.fromDegrees(lonEast, latNorth, -maxDepthMeters),
+      Cesium.Cartesian3.fromDegrees(lonWest, latNorth, -maxDepthMeters),
+      Cesium.Cartesian3.fromDegrees(lonWest, latSouth, -maxDepthMeters)
+    ];
+
+    const boxOutline = viewer.entities.add({
+      name: 'Cutaway Box Wireframe',
+      polyline: {
+        positions: outlinePositions,
+        width: 2.5,
+        material: new Cesium.PolylineGlowMaterialProperty({
+          glowPower: 0.25,
+          color: Cesium.Color.fromCssColorString('#00d4ff')
+        })
+      }
+    });
+    newEntities.push(boxOutline);
+
+    // Additional vertical corner pillars
+    const frontRightPillar = viewer.entities.add({
+      polyline: {
+        positions: [
+          Cesium.Cartesian3.fromDegrees(lonEast, latSouth, 0),
+          Cesium.Cartesian3.fromDegrees(lonEast, latSouth, -maxDepthMeters)
+        ],
+        width: 2,
+        material: Cesium.Color.fromCssColorString('#00d4ff')
+      }
+    });
+    newEntities.push(frontRightPillar);
+
+    const backRightPillar = viewer.entities.add({
+      polyline: {
+        positions: [
+          Cesium.Cartesian3.fromDegrees(lonEast, latNorth, 0),
+          Cesium.Cartesian3.fromDegrees(lonEast, latNorth, -maxDepthMeters)
+        ],
+        width: 1.5,
+        material: Cesium.Color.fromCssColorString('#0e4c66')
+      }
+    });
+    newEntities.push(backRightPillar);
+
+    // ==========================================
+    // B. Ocean Surface Layer & Active Depth Slice
+    // ==========================================
+
+    // Ocean Surface Plane (top of cutaway box)
+    const oceanSurface = viewer.entities.add({
+      name: 'Ocean Surface',
+      polygon: {
+        hierarchy: Cesium.Cartesian3.fromDegreesArray([
+          lonWest, latSouth,
+          lonEast, latSouth,
+          lonEast, latNorth,
+          lonWest, latNorth
+        ]),
+        height: 500,
+        material: Cesium.Color.fromCssColorString('#0e4c66').withAlpha(0.55)
+      }
+    });
+    newEntities.push(oceanSurface);
+
+    // Active Depth Iso-surface Plane (controlled by Depth Slider)
+    if (activeDepthMeters > 0) {
+      const depthSlice = viewer.entities.add({
+        name: `Depth Plane (${depth}m)`,
+        polygon: {
+          hierarchy: Cesium.Cartesian3.fromDegreesArray([
+            lonWest, latSouth,
+            lonEast, latSouth,
+            lonEast, latNorth,
+            lonWest, latNorth
+          ]),
+          height: -activeDepthMeters,
+          material: Cesium.Color.fromCssColorString('#00d4ff').withAlpha(0.22),
+          outline: true,
+          outlineColor: Cesium.Color.fromCssColorString('#00d4ff').withAlpha(0.7)
+        }
+      });
+      newEntities.push(depthSlice);
+    }
+
+    // ==========================================
+    // C. 3D Ocean Current Flow Streamlines / Arrows
+    // ==========================================
+    if (showCurrents) {
+      // 1. Warm northeastward curved current arrows (red/orange)
+      const warmCurrentCoordinates = [
+        [83.0, 8.5],
+        [85.5, 11.0],
+        [88.0, 13.5],
+        [90.5, 15.2],
+        [92.0, 16.0]
+      ];
+
+      const warmCurrent = viewer.entities.add({
+        name: 'Warm Bay of Bengal Current',
+        polyline: {
+          positions: warmCurrentCoordinates.map(pt => Cesium.Cartesian3.fromDegrees(pt[0], pt[1], 1500)),
+          width: 8,
+          material: new Cesium.PolylineArrowMaterialProperty(
+            Cesium.Color.fromCssColorString('#ff6b4a')
+          )
+        }
+      });
+      newEntities.push(warmCurrent);
+
+      // Branching warm current loop
+      const warmCurrentLoop = viewer.entities.add({
+        name: 'Warm Coastal Gyre',
+        polyline: {
+          positions: [
+            [84.5, 12.0],
+            [87.0, 14.5],
+            [90.0, 15.8],
+            [88.5, 17.5],
+            [85.5, 16.8]
+          ].map(pt => Cesium.Cartesian3.fromDegrees(pt[0], pt[1], 1500)),
+          width: 7,
+          material: new Cesium.PolylineArrowMaterialProperty(
+            Cesium.Color.fromCssColorString('#fa8c16')
+          )
+        }
+      });
+      newEntities.push(warmCurrentLoop);
+
+      // 2. Cool cyclonic gyre currents around Sri Lanka (cyan/blue)
+      const coolCurrentSriLanka = viewer.entities.add({
+        name: 'Sri Lanka Dome Current',
+        polyline: {
+          positions: [
+            [81.2, 6.5],
+            [82.8, 8.0],
+            [82.5, 10.5],
+            [81.5, 11.2],
+            [80.8, 9.8]
+          ].map(pt => Cesium.Cartesian3.fromDegrees(pt[0], pt[1], 1500)),
+          width: 7,
+          material: new Cesium.PolylineArrowMaterialProperty(
+            Cesium.Color.fromCssColorString('#00d4ff')
+          )
+        }
+      });
+      newEntities.push(coolCurrentSriLanka);
+
+      // 3. Central Bay cool return current
+      const coolReturnCurrent = viewer.entities.add({
+        name: 'Bay of Bengal Gyre Return',
+        polyline: {
+          positions: [
+            [92.5, 14.0],
+            [90.5, 11.5],
+            [87.5, 9.5],
+            [84.5, 8.0]
+          ].map(pt => Cesium.Cartesian3.fromDegrees(pt[0], pt[1], 1500)),
+          width: 7,
+          material: new Cesium.PolylineArrowMaterialProperty(
+            Cesium.Color.fromCssColorString('#1890ff')
+          )
+        }
+      });
+      newEntities.push(coolReturnCurrent);
+
+      // 4. Subsurface vertical upwelling arrow (cyan vertical vector rising from 1000m to 400m)
+      const upwellingArrow = viewer.entities.add({
+        name: 'Coastal Upwelling Vector',
+        polyline: {
+          positions: [
+            Cesium.Cartesian3.fromDegrees(82.5, 12.0, -1000 * visualScale),
+            Cesium.Cartesian3.fromDegrees(82.5, 12.0, -350 * visualScale)
+          ],
+          width: 8,
+          material: new Cesium.PolylineArrowMaterialProperty(
+            Cesium.Color.fromCssColorString('#00ffff')
+          )
+        }
+      });
+      newEntities.push(upwellingArrow);
+
+      // Subsurface horizontal flow arrows inside the cutaway volume
+      const subsurfaceFlow = viewer.entities.add({
+        name: 'Thermocline Subsurface Flow',
+        polyline: {
+          positions: [
+            Cesium.Cartesian3.fromDegrees(81.5, 7.5, -450 * visualScale),
+            Cesium.Cartesian3.fromDegrees(85.5, 9.0, -500 * visualScale),
+            Cesium.Cartesian3.fromDegrees(89.5, 10.5, -550 * visualScale)
+          ],
+          width: 6,
+          material: new Cesium.PolylineArrowMaterialProperty(
+            Cesium.Color.fromCssColorString('#faad14')
+          )
+        }
+      });
+      newEntities.push(subsurfaceFlow);
+    }
+
+    // ==========================================
+    // D. Geographic Country & Region Labels
+    // ==========================================
+    const geoLabels = [
+      { text: 'INDIA', lon: 78.8, lat: 17.5, height: 4000, font: 'bold 20px Inter', color: '#ffffff' },
+      { text: 'SRI LANKA', lon: 80.7, lat: 7.8, height: 3000, font: 'bold 16px Inter', color: '#ffffff' },
+      { text: 'Bay of Bengal', lon: 88.5, lat: 14.8, height: 2000, font: 'bold 22px Inter', color: '#00d4ff' },
+      { text: 'BANGLADESH', lon: 90.2, lat: 23.8, height: 4000, font: 'bold 15px Inter', color: '#ffffff' },
+      { text: 'MYANMAR', lon: 95.8, lat: 19.5, height: 4000, font: 'bold 16px Inter', color: '#ffffff' }
+    ];
+
+    geoLabels.forEach(lbl => {
+      const labelEntity = viewer.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(lbl.lon, lbl.lat, lbl.height),
+        label: {
+          text: lbl.text,
+          font: lbl.font,
+          fillColor: Cesium.Color.fromCssColorString(lbl.color),
+          outlineColor: Cesium.Color.fromCssColorString('#0a1628'),
+          outlineWidth: 3,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(100000, 10000000)
+        }
+      });
+      newEntities.push(labelEntity);
+    });
+
+    // ==========================================
+    // E. 3D Submerged Sensor Platforms (Argo & Gliders)
+    // ==========================================
+    const allObservations = oceanDataService['generateDemoObservationData']({});
+
+    allObservations.forEach(obs => {
+      const isArgo = obs.platformType === 'argo';
+      const isGlider = obs.platformType === 'glider';
+
+      if (isArgo && !showArgo) return;
+      if (isGlider && !showGliders) return;
+
+      const isSelected = selectedObservationId === obs.id;
+      const markerDepthMeters = -(obs.depth * visualScale);
+
+      // Vertical Tether Profile Line from sea surface to submerged depth
+      const tether = viewer.entities.add({
+        polyline: {
+          positions: [
+            Cesium.Cartesian3.fromDegrees(obs.longitude, obs.latitude, 0),
+            Cesium.Cartesian3.fromDegrees(obs.longitude, obs.latitude, markerDepthMeters)
+          ],
+          width: isSelected ? 2.5 : 1.5,
+          material: Cesium.Color.fromCssColorString(
+            isSelected ? '#ffffff' : isArgo ? 'rgba(0, 212, 255, 0.45)' : 'rgba(244, 114, 182, 0.45)'
+          )
+        }
+      });
+      newEntities.push(tether);
+
+      // Submerged Sensor Platform Marker
+      const iconUri = isArgo ? createArgoIcon(isSelected) : createGliderIcon(isSelected);
+
+      const markerEntity = viewer.entities.add({
+        name: obs.platformId,
+        position: Cesium.Cartesian3.fromDegrees(obs.longitude, obs.latitude, markerDepthMeters),
+        billboard: {
+          image: iconUri,
+          scale: isSelected ? 1.25 : 0.95,
+          verticalOrigin: Cesium.VerticalOrigin.CENTER,
+          heightReference: Cesium.HeightReference.NONE
+        },
+        label: {
+          text: obs.platformId,
+          font: isSelected ? 'bold 14px Inter' : '12px Inter',
+          fillColor: isSelected ? Cesium.Color.fromCssColorString('#00d4ff') : Cesium.Color.WHITE,
+          outlineColor: Cesium.Color.fromCssColorString('#0a1628'),
+          outlineWidth: 3,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          pixelOffset: new Cesium.Cartesian2(0, -26)
+        }
+      });
+
+      // Attach raw observation data for click picking
+      (markerEntity as any).observationData = obs;
+      newEntities.push(markerEntity);
+    });
+
+    entitiesRef.current = newEntities;
+  }, [
+    isSceneReady,
+    parameter,
+    depth,
+    showArgo,
+    showGliders,
+    showCurrents,
+    verticalExaggeration,
+    opacity,
+    selectedObservationId,
+    visualScale,
+    maxDepthMeters,
+    activeDepthMeters
+  ]);
+
+  // ==========================================
+  // Camera Control Actions
+  // ==========================================
+  const handleZoom = (delta: number) => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    const camera = viewer.camera;
+    if (delta > 0) {
+      camera.zoomIn(camera.positionCartographic.height * 0.25);
+    } else {
+      camera.zoomOut(camera.positionCartographic.height * 0.25);
+    }
+  };
+
+  const handleRotate = (angleDegrees: number) => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    viewer.camera.rotate(Cesium.Cartesian3.UNIT_Z, Cesium.Math.toRadians(angleDegrees));
+  };
+
+  const handleResetCamera = useCallback(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    const preset = REGION_PRESETS.bay_of_bengal;
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(
+        preset.destination[0],
+        preset.destination[1],
+        preset.destination[2]
+      ),
+      orientation: {
+        heading: Cesium.Math.toRadians(preset.heading),
+        pitch: Cesium.Math.toRadians(preset.pitch),
+        roll: Cesium.Math.toRadians(preset.roll)
+      },
+      duration: 1.5
+    });
+    if (onRegionChange) {
+      onRegionChange('bay_of_bengal');
+    }
+  }, [onRegionChange]);
+
+  const handleFullscreen = () => {
+    if (containerRef.current) {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        containerRef.current.requestFullscreen();
+      }
+    }
+  };
+
   return (
-    <div className="integrated-ocean-scene">
-      <Canvas
-        camera={{ position: [10, 6, 10], fov: 50 }}
-        style={{ background: 'linear-gradient(180deg, #0a1628 0%, #0f2744 50%, #1a3a5c 100%)' }}
-      >
-        <PerspectiveCamera makeDefault position={[10, 6, 10]} />
-        
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[5, 15, 5]} intensity={1.0} color="#87CEEB" />
-        <pointLight position={[8, 8, 8]} intensity={0.6} color="#00d4ff" />
-        <pointLight position={[-8, 4, -8]} intensity={0.4} color="#2dd4bf" />
-        <pointLight position={[0, -5, 0]} intensity={0.3} color="#4169E1" />
-        
-        <GeographicMapBackground />
-        <OceanSurface />
-        <UnderwaterCrossSection parameter={parameter} />
-        <DepthLevels currentDepth={depth} />
-        {showCurrents && <CurrentFlows />}
-        <ObservationMarkers type="argo" show={showArgo} />
-        <ObservationMarkers type="glider" show={showGliders} />
-        
-        <OrbitControls
-          enablePan={true}
-          enableZoom={true}
-          enableRotate={true}
-          minDistance={6}
-          maxDistance={20}
-          maxPolarAngle={Math.PI / 2}
-          minPolarAngle={0.1}
-          autoRotate={false}
-        />
-      </Canvas>
+    <div className="cesium-ocean-scene-wrapper">
+      {/* Primary Cesium WebGL Container */}
+      <div ref={containerRef} className="cesium-viewport-container" />
+
+      {/* Floating 3D Camera Controls Toolbar */}
+      <div className="floating-camera-toolbar">
+        <button 
+          className="camera-tool-btn" 
+          onClick={() => handleZoom(1)} 
+          title="Zoom In"
+        >
+          <ZoomIn size={16} />
+        </button>
+        <button 
+          className="camera-tool-btn" 
+          onClick={() => handleZoom(-1)} 
+          title="Zoom Out"
+        >
+          <ZoomOut size={16} />
+        </button>
+        <button 
+          className="camera-tool-btn" 
+          onClick={() => handleRotate(15)} 
+          title="Rotate Orbit"
+        >
+          <Compass size={16} />
+        </button>
+        <button 
+          className="camera-tool-btn" 
+          onClick={handleResetCamera} 
+          title="Reset Reference 3D View"
+        >
+          <RotateCcw size={16} />
+        </button>
+        <button 
+          className="camera-tool-btn" 
+          onClick={handleFullscreen} 
+          title="Toggle Fullscreen"
+        >
+          <Maximize2 size={16} />
+        </button>
+      </div>
+
+      {/* Quick Ocean Basin Preset Buttons */}
+      <div className="ocean-basin-pill-bar">
+        {Object.entries(REGION_PRESETS).map(([key, item]) => (
+          <button
+            key={key}
+            className={`basin-pill ${activeRegion === key ? 'active' : ''}`}
+            onClick={() => onRegionChange && onRegionChange(key)}
+          >
+            {item.name}
+          </button>
+        ))}
+      </div>
+
+      {/* Entity Hover Tooltip */}
+      {hoveredEntity && (
+        <div className="scene-hover-badge">
+          <Eye size={13} className="hover-badge-icon" />
+          <span>Click to inspect <strong>{hoveredEntity}</strong></span>
+        </div>
+      )}
+
+      {/* Depth Stratification Legend Tag */}
+      <div className="depth-scale-tag">
+        <Layers size={13} />
+        <span>Vertical Exaggeration: {verticalExaggeration}x (0m – 3000m)</span>
+      </div>
     </div>
   );
 }

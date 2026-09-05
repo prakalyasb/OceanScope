@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Play, Pause, SkipBack, SkipForward } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Play, Pause } from 'lucide-react';
 import './Timeline.css';
 
 interface TimelineProps {
@@ -7,141 +7,144 @@ interface TimelineProps {
   onTimeChange: (time: Date) => void;
   isPlaying: boolean;
   onPlayPause: () => void;
+  onSelectPin?: (pinId: string) => void;
 }
 
-export default function Timeline({ currentTime, onTimeChange, isPlaying, onPlayPause }: TimelineProps) {
-  const [timelineProgress, setTimelineProgress] = useState(50);
+interface TimelinePin {
+  id: string;
+  label: string;
+  position: number; // 0 to 100%
+  color: string;
+  hasAiTag?: boolean;
+}
 
-  // Generate timeline dates matching reference
-  const timelineDates = useMemo(() => [
-    { date: '18 Oct', fullDate: '2024-10-18' },
-    { date: '20 Oct', fullDate: '2024-10-20' },
-    { date: '22 Oct', fullDate: '2024-10-22' },
-    { date: '01 Nov', fullDate: '2024-11-01' },
-    { date: '15 Nov', fullDate: '2024-11-15' }
-  ], []);
+const TIMELINE_TICKS = [
+  '18 Jan', '20 May', '22 May', '24 May', '16 May', '18 May', 
+  '20 May', '01 May', '02 Day', '03 Day', '04 Day', '08 Day', 
+  '15 May', '25 May', '03 Nov'
+];
 
-  // Generate time-series data points
-  const timeSeriesData = useMemo(() => {
-    return Array.from({ length: 50 }, (_, i) => ({
-      value: 20 + Math.sin(i * 0.2) * 10 + Math.random() * 5,
-      position: (i / 49) * 100
-    }));
+const MILESTONE_PINS: TimelinePin[] = [
+  { id: 'pin-1', label: 'Argo 0045', position: 31, color: '#00d4ff' },
+  { id: 'pin-2', label: 'AI Anomaly', position: 41, color: '#ff6b4a', hasAiTag: true },
+  { id: 'pin-3', label: 'Altimetry', position: 65, color: '#7a9cae' },
+  { id: 'pin-4', label: 'Upwelling', position: 74, color: '#ff6b4a' }
+];
+
+export default function Timeline({
+  onTimeChange,
+  isPlaying,
+  onPlayPause,
+  onSelectPin
+}: TimelineProps) {
+  const [progress, setProgress] = React.useState(31);
+
+  // Generate smooth waveform path
+  const waveformPath = useMemo(() => {
+    const points = [];
+    const totalPoints = 120;
+    for (let i = 0; i <= totalPoints; i++) {
+      const x = (i / totalPoints) * 1000;
+      // Anomaly spike around x = 410 (41%)
+      const anomalyFactor = Math.exp(-Math.pow((i - 49) / 7, 2)) * 14;
+      const baseWave = Math.sin(i * 0.18) * 6 + Math.cos(i * 0.35) * 4;
+      const y = 24 - baseWave - anomalyFactor;
+      points.push(`${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`);
+    }
+    return points.join(' ');
   }, []);
 
-  // Generate observation markers
-  const observationMarkers = useMemo(() => {
-    return Array.from({ length: 6 }, (_, i) => ({
-      position: 10 + i * 16,
-      value: Math.floor(Math.random() * 50) + 20,
-      type: i % 2 === 0 ? 'normal' : 'anomaly'
-    }));
-  }, []);
-
-  const handleTimelineChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const progress = Number(e.target.value);
-    setTimelineProgress(progress);
-    
-    // Calculate new date based on progress
-    const daysToAdd = Math.floor((progress / 100) * 365);
-    const newDate = new Date(currentTime.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = Number(e.target.value);
+    setProgress(val);
+    const dateOffsetDays = Math.round((val / 100) * 180);
+    const newDate = new Date('2024-05-01');
+    newDate.setDate(newDate.getDate() + dateOffsetDays);
     onTimeChange(newDate);
   };
 
-  const handleSkip = (direction: 'back' | 'forward') => {
-    const days = direction === 'back' ? -7 : 7;
-    const newDate = new Date(currentTime.getTime() + days * 24 * 60 * 60 * 1000);
-    onTimeChange(newDate);
+  const handlePinClick = (pin: TimelinePin) => {
+    setProgress(pin.position);
+    if (onSelectPin) {
+      onSelectPin(pin.id);
+    }
   };
 
   return (
-    <div className="timeline-container glass-panel">
-      <div className="timeline-controls">
-        <button className="timeline-btn" onClick={() => handleSkip('back')} title="Skip back">
-          <SkipBack />
-        </button>
-        <button 
-          className={`timeline-btn play-btn ${isPlaying ? 'playing' : ''}`}
-          onClick={onPlayPause}
-          title={isPlaying ? 'Pause' : 'Play'}
-        >
-          {isPlaying ? <Pause /> : <Play />}
-        </button>
-        <button className="timeline-btn" onClick={() => handleSkip('forward')} title="Skip forward">
-          <SkipForward />
-        </button>
-      </div>
+    <div className="reference-timeline-bar">
+      {/* 1. Play / Pause Button */}
+      <button 
+        className="timeline-play-btn" 
+        onClick={onPlayPause}
+        title={isPlaying ? 'Pause' : 'Play'}
+      >
+        {isPlaying ? <Pause size={18} fill="#ffffff" /> : <Play size={18} fill="#ffffff" />}
+      </button>
 
-      <div className="timeline-track">
-        {/* Time-series graph */}
-        <div className="time-series-graph">
-          <svg className="graph-svg" viewBox="0 0 400 60" preserveAspectRatio="none">
-            <path
-              d={timeSeriesData.map((d, i) => {
-                const x = (d.position / 100) * 400;
-                const y = 60 - ((d.value - 10) / 25) * 60;
-                return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
-              }).join(' ')}
-              fill="none"
-              stroke="rgba(0, 212, 255, 0.5)"
-              strokeWidth="2"
-            />
+      {/* 2. Scrubbable Track & Waveform */}
+      <div className="timeline-track-wrapper">
+        {/* Waveform SVG */}
+        <div className="waveform-svg-container">
+          <svg viewBox="0 0 1000 48" preserveAspectRatio="none" className="waveform-svg">
+            <defs>
+              <linearGradient id="waveGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#00d4ff" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#00d4ff" stopOpacity="0.05" />
+              </linearGradient>
+            </defs>
+            <path d={waveformPath} fill="none" stroke="#00d4ff" strokeWidth="2" />
           </svg>
         </div>
 
-        {/* Observation markers */}
-        <div className="observation-markers">
-          {observationMarkers.map((marker, i) => (
+        {/* Milestone Event Pins */}
+        <div className="timeline-pins-layer">
+          {MILESTONE_PINS.map((pin) => (
             <div
-              key={i}
-              className={`observation-marker ${marker.type}`}
-              style={{ left: `${marker.position}%` }}
-              title={`Observation: ${marker.value}`}
+              key={pin.id}
+              className="milestone-pin-marker"
+              style={{ left: `${pin.position}%` }}
+              onClick={() => handlePinClick(pin)}
+              title={pin.label}
             >
-              <span className="marker-value">{marker.value}</span>
+              <div 
+                className="pin-head" 
+                style={{ backgroundColor: pin.color, borderColor: pin.color }}
+              >
+                {pin.hasAiTag && <span className="ai-tag-inside">AI</span>}
+              </div>
+              <div className="pin-stem" style={{ backgroundColor: pin.color }} />
             </div>
           ))}
         </div>
 
-        {/* Timeline slider */}
+        {/* Active Progress Needle */}
+        <div 
+          className="timeline-cursor-needle"
+          style={{ left: `${progress}%` }}
+        />
+
+        {/* Hidden Range Input for Scrubbing */}
         <input
           type="range"
           min="0"
           max="100"
-          value={timelineProgress}
-          onChange={handleTimelineChange}
-          className="timeline-slider"
+          step="0.5"
+          value={progress}
+          onChange={handleSliderChange}
+          className="timeline-scrub-input"
         />
 
-        {/* Date markers */}
-        <div className="timeline-dates">
-          {timelineDates.map((date, i) => (
-            <div 
-              key={i} 
-              className="timeline-date"
-              style={{ left: `${(i / (timelineDates.length - 1)) * 100}%` }}
-            >
-              {date.date}
-            </div>
+        {/* Baseline Axis with Tick Marks */}
+        <div className="timeline-axis-line" />
+
+        {/* Date Labels along the bottom */}
+        <div className="timeline-dates-row">
+          {TIMELINE_TICKS.map((tick, i) => (
+            <span key={i} className="timeline-date-item">
+              {tick}
+            </span>
           ))}
         </div>
-
-        {/* Current position marker */}
-        <div 
-          className="timeline-marker"
-          style={{ left: `${timelineProgress}%` }}
-        />
-      </div>
-
-      <div className="timeline-info">
-        <span className="timeline-label">Current Time:</span>
-        <span className="timeline-value">
-          {currentTime.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric',
-            year: 'numeric'
-          })}
-        </span>
       </div>
     </div>
   );

@@ -1,111 +1,109 @@
-.explorer-page {
-  min-height: 100vh;
-  padding-top: 5rem;
-  display: flex;
-  flex-direction: column;
-  background: linear-gradient(180deg, #0a1628 0%, #0f2744 100%);
-}
-
-.explorer-header {
-  padding: 1rem 1.5rem;
-  background: rgba(15, 39, 68, 0.7);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(0, 212, 255, 0.1);
-}
-
-.explorer-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #e8f4f8;
-  margin: 0 0 0.25rem 0;
-  letter-spacing: -0.01em;
-}
-
-.explorer-subtitle {
-  font-size: 0.8125rem;
-  color: #7a9cae;
-  margin: 0;
-}
-
-.explorer-layout {
-  display: grid;
-  grid-template-columns: 300px 1fr 400px;
-  gap: 1rem;
-  padding: 1rem;
-  flex: 1;
-  height: calc(100vh - 10rem);
-}
-
-.explorer-controls {
-  display: flex;
-  flex-direction: column;
-}
-
-.explorer-viewport {
+.explorer-page-fullscreen {
   position: relative;
-  background: linear-gradient(180deg, #0a1628 0%, #0f2744 50%, #1a3a5c 100%);
-  border: 1px solid rgba(0, 212, 255, 0.15);
-  border-radius: 0.75rem;
+  width: 100vw;
+  height: 100vh;
   overflow: hidden;
-  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.4);
+  background: #060d17;
+  padding-top: 60px; /* Space for Navbar */
 }
 
-.explorer-data {
-  display: flex;
-  flex-direction: column;
+/* Fullscreen 3D Viewport */
+.fullscreen-3d-viewport {
+  position: absolute;
+  top: 60px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
 }
 
-.explorer-timeline {
-  padding: 0.75rem 1rem;
-  background: rgba(15, 39, 68, 0.7);
-  border-top: 1px solid rgba(0, 212, 255, 0.1);
+/* Top World Map / Location Overview */
+.top-location-overview-wrapper {
+  position: absolute;
+  top: 72px;
+  left: 20px;
+  z-index: 100;
+  pointer-events: auto;
 }
 
-@media (max-width: 1400px) {
-  .explorer-layout {
-    grid-template-columns: 220px 1fr 320px;
-  }
+/* Floating Left Controls Panel */
+.floating-left-controls-wrapper {
+  position: absolute;
+  top: 175px;
+  left: 20px;
+  z-index: 90;
+  pointer-events: auto;
+  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 212, 255, 0.3) transparent;
+}
+
+.floating-left-controls-wrapper::-webkit-scrollbar {
+  width: 4px;
+}
+
+.floating-left-controls-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(0, 212, 255, 0.3);
+  border-radius: 4px;
+}
+
+/* Floating Right Ocean Insight Inspection Panel */
+.floating-right-insight-wrapper {
+  position: absolute;
+  top: 75px;
+  right: 20px;
+  z-index: 90;
+  pointer-events: auto;
+  max-height: calc(100vh - 190px);
+  overflow-y: auto;
+}
+
+/* Floating Bottom Timeline Bar */
+.floating-bottom-timeline-wrapper {
+  position: absolute;
+  bottom: 15px;
+  left: 20px;
+  right: 20px;
+  z-index: 90;
+  pointer-events: auto;
 }
 
 @media (max-width: 1200px) {
-  .explorer-layout {
-    grid-template-columns: 1fr 320px;
-  }
-  
-  .explorer-controls {
+  .top-location-overview-wrapper {
     display: none;
+  }
+  .floating-left-controls-wrapper {
+    top: 75px;
   }
 }
 
 @media (max-width: 900px) {
-  .explorer-layout {
-    grid-template-columns: 1fr;
+  .floating-left-controls-wrapper {
+    position: relative;
+    top: 0;
+    left: 0;
+    width: 100%;
+    max-height: none;
+  }
+  .floating-right-insight-wrapper {
+    position: relative;
+    top: 0;
+    right: 0;
+    width: 100%;
+  }
+  .floating-bottom-timeline-wrapper {
+    position: relative;
+    bottom: 0;
+    left: 0;
+    right: 0;
+  }
+  .fullscreen-3d-viewport {
+    position: relative;
+    height: 50vh;
+  }
+  .explorer-page-fullscreen {
+    overflow-y: auto;
     height: auto;
-  }
-  
-  .explorer-data {
-    display: none;
-  }
-  
-  .explorer-viewport {
-    height: 60vh;
-  }
-}
-
-@media (max-width: 768px) {
-  .explorer-header {
-    padding: 0.75rem 1rem;
-  }
-  
-  .explorer-title {
-    font-size: 1.125rem;
-  }
-  
-  .explorer-layout {
-    padding: 0.5rem;
-  }
-  
-  .explorer-timeline {
-    padding: 0.5rem 0.75rem;
   }
 }

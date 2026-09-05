@@ -1,24 +1,24 @@
-.ocean-insight-panel {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  width: 350px;
-  max-height: calc(100vh - 100px);
-  background: rgba(15, 39, 68, 0.95);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 212, 255, 0.3);
-  border-radius: 12px;
-  overflow: hidden;
-  z-index: 1000;
-  animation: slideIn 0.3s ease;
+.reference-insight-card {
+  width: 320px;
+  background: rgba(10, 22, 40, 0.82);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(0, 212, 255, 0.22);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  padding: 16px;
+  color: #e8f4f8;
   display: flex;
   flex-direction: column;
+  gap: 12px;
+  user-select: none;
+  animation: slideInRight 0.25s ease-out;
 }
 
-@keyframes slideIn {
+@keyframes slideInRight {
   from {
     opacity: 0;
-    transform: translateX(20px);
+    transform: translateX(15px);
   }
   to {
     opacity: 1;
@@ -26,194 +26,151 @@
   }
 }
 
-.insight-header {
+/* 1. Header */
+.card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px;
-  background: rgba(0, 212, 255, 0.1);
-  border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.15);
 }
 
-.insight-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
+.card-title {
+  font-size: 15px;
   font-weight: 700;
-  color: #00d4ff;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  color: #ffffff;
+  letter-spacing: 0.2px;
 }
 
-.insight-icon {
-  width: 18px;
-  height: 18px;
-}
-
-.close-btn {
+.card-close-btn {
+  background: transparent;
+  border: none;
+  color: #7a9cae;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px;
-  background: rgba(0, 212, 255, 0.1);
-  border: 1px solid rgba(0, 212, 255, 0.2);
-  border-radius: 6px;
-  color: #00d4ff;
-  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
   transition: all 0.2s ease;
 }
 
-.close-btn:hover {
-  background: rgba(0, 212, 255, 0.2);
-  border-color: rgba(0, 212, 255, 0.3);
+.card-close-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
 }
 
-.close-btn svg {
-  width: 18px;
-  height: 18px;
-}
-
-.insight-content {
-  padding: 16px;
+/* 2. Platform Identifier */
+.platform-id-row {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  flex: 1;
-}
-
-.insight-content::-webkit-scrollbar {
-  width: 6px;
-}
-
-.insight-content::-webkit-scrollbar-track {
-  background: rgba(0, 212, 255, 0.05);
-  border-radius: 3px;
-}
-
-.insight-content::-webkit-scrollbar-thumb {
-  background: rgba(0, 212, 255, 0.3);
-  border-radius: 3px;
-}
-
-.insight-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 212, 255, 0.5);
-}
-
-.section-title {
-  font-size: 11px;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
   font-weight: 700;
-  color: #7a9cae;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 8px;
 }
 
-.platform-section,
-.comparison-section,
-.status-section,
-.profile-section {
-  background: rgba(10, 22, 40, 0.5);
-  border: 1px solid rgba(0, 212, 255, 0.1);
-  border-radius: 8px;
-  padding: 12px;
+.platform-diamond-badge {
+  color: #00d4ff;
+  font-size: 16px;
+  line-height: 1;
+  filter: drop-shadow(0 0 6px rgba(0, 212, 255, 0.7));
 }
 
-.platform-info {
+.platform-triangle-badge {
+  color: #f472b6;
+  font-size: 14px;
+  line-height: 1;
+  filter: drop-shadow(0 0 6px rgba(244, 114, 182, 0.7));
+}
+
+.platform-id-text {
+  color: #00d4ff;
+  letter-spacing: 0.5px;
+}
+
+/* 3. Numerical Metrics */
+.metrics-list {
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-
-.info-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.label {
   font-size: 12px;
-  color: #7a9cae;
-  font-weight: 500;
 }
 
-.value {
-  font-size: 13px;
+.metric-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.metric-label {
+  color: #b8d4e0;
+}
+
+.metric-value {
   font-weight: 600;
-  color: #e8f4f8;
-  font-family: 'Fira Code', monospace;
+  color: #ffffff;
+  font-family: monospace;
 }
 
-.comparison-table {
+.highlight-difference {
+  color: #ff6b4a;
+  font-weight: 700;
+}
+
+.timestamp-val {
+  font-size: 11px;
+  color: #7a9cae;
+}
+
+.status-badge-framed {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.1);
+}
+
+.status-badge-framed.anomaly {
+  border-color: #fa8c16;
+  color: #ffa940;
+  background: rgba(250, 140, 22, 0.12);
+  box-shadow: 0 0 10px rgba(250, 140, 22, 0.25);
+}
+
+/* 4. Depth Profile Chart Section */
+.profile-chart-section {
+  margin-top: 6px;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.comparison-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
-  gap: 8px;
-  align-items: center;
-  padding: 6px;
-  background: rgba(15, 39, 68, 0.5);
-  border-radius: 4px;
-}
-
-.var-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: #e8f4f8;
-}
-
-.model-value,
-.observed-value {
-  font-size: 12px;
-  font-weight: 500;
-  color: #7a9cae;
-  font-family: 'Fira Code', monospace;
-}
-
-.diff-value {
-  font-size: 12px;
-  font-weight: 600;
-  color: #f97316;
-  font-family: 'Fira Code', monospace;
-}
-
-.diff-value.positive {
-  color: #10b981;
-}
-
-.status-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #fbbf24;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.status-icon {
-  width: 16px;
-  height: 16px;
-}
-
-.chart-container {
-  width: 100%;
-  height: 200px;
-}
-
-.demo-notice {
-  padding: 8px 12px;
-  background: rgba(251, 191, 36, 0.1);
-  border-top: 1px solid rgba(251, 191, 36, 0.2);
+.chart-header-label {
   text-align: center;
-  font-size: 10px;
-  color: #fbbf24;
+  font-size: 11px;
+  color: #7a9cae;
+  font-weight: 500;
+}
+
+.recharts-wrapper-custom {
+  position: relative;
+  width: 100%;
+}
+
+.anomaly-overlay-callout {
+  position: absolute;
+  top: 48%;
+  right: 12px;
+  background: rgba(255, 77, 79, 0.85);
+  color: #ffffff;
+  font-size: 9px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
 }

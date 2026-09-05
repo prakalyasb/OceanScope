@@ -16,6 +16,14 @@ export interface OceanDataPoint {
   bathymetry?: number;
 }
 
+export interface DepthProfilePoint {
+  depth: number;
+  model: number;
+  observed: number;
+  difference?: number;
+  isAnomaly?: boolean;
+}
+
 export interface ObservationData {
   id: string;
   platformId: string;
@@ -24,13 +32,19 @@ export interface ObservationData {
   longitude: number;
   timestamp: Date;
   depth: number;
+  status?: 'NORMAL' | 'ANOMALY DETECTED' | 'UPWELLING DETECTED' | 'CALIBRATING';
+  modelTemperature?: number;
+  observedTemperature?: number;
+  difference?: number;
   variables: {
     temperature?: number;
     salinity?: number;
     oxygen?: number;
     chlorophyll?: number;
   };
+  profile?: DepthProfilePoint[];
 }
+
 
 export interface GridData {
   latitude: number[];
@@ -196,66 +210,138 @@ export class OceanDataService {
     return { latitude, longitude, depth, time, data };
   }
 
-  // Generate demo observation data (clearly labeled)
+  // Generate demo observation data matching reference image
   private generateDemoObservationData(_params: any): ObservationData[] {
     return [
       {
-        id: 'DEMO-ARGO-001',
-        platformId: '2900123',
+        id: 'ARGO_IND_0045',
+        platformId: 'ARGO_IND_0045',
         platformType: 'argo',
-        latitude: 15.0,
-        longitude: 75.0,
-        timestamp: new Date('2024-01-15'),
-        depth: 250,
+        latitude: 13.5,
+        longitude: 84.8,
+        timestamp: new Date('2024-10-15T08:30:00Z'),
+        depth: 200,
+        status: 'ANOMALY DETECTED',
+        modelTemperature: 27.4,
+        observedTemperature: 29.1,
+        difference: 1.7,
         variables: {
-          temperature: 24.5,
-          salinity: 35.2,
-          oxygen: 5.8,
-          chlorophyll: 0.8
-        }
+          temperature: 29.1,
+          salinity: 34.6,
+          oxygen: 5.2,
+          chlorophyll: 1.4
+        },
+        profile: [
+          { depth: 0, model: 30.5, observed: 30.8, difference: 0.3 },
+          { depth: 25, model: 30.2, observed: 30.6, difference: 0.4 },
+          { depth: 50, model: 29.8, observed: 30.3, difference: 0.5 },
+          { depth: 75, model: 29.2, observed: 29.9, difference: 0.7 },
+          { depth: 100, model: 28.5, observed: 29.4, difference: 0.9 },
+          { depth: 125, model: 27.8, observed: 29.3, difference: 1.5, isAnomaly: true },
+          { depth: 150, model: 27.4, observed: 29.1, difference: 1.7, isAnomaly: true },
+          { depth: 175, model: 27.1, observed: 28.7, difference: 1.6, isAnomaly: true },
+          { depth: 200, model: 26.8, observed: 27.5, difference: 0.7 },
+          { depth: 225, model: 26.5, observed: 26.8, difference: 0.3 },
+          { depth: 250, model: 26.2, observed: 26.3, difference: 0.1 }
+        ]
       },
       {
-        id: 'DEMO-GLIDER-001',
-        platformId: 'SG567',
-        platformType: 'glider',
-        latitude: 18.0,
-        longitude: 88.0,
-        timestamp: new Date('2024-01-15'),
-        depth: 150,
-        variables: {
-          temperature: 26.2,
-          salinity: 34.8,
-          oxygen: 6.1,
-          chlorophyll: 1.2
-        }
-      },
-      {
-        id: 'DEMO-CTD-001',
-        platformId: 'CTD-789',
-        platformType: 'ctd',
-        latitude: 12.0,
-        longitude: 80.0,
-        timestamp: new Date('2024-01-15'),
+        id: 'ARGO_IND_0089',
+        platformId: 'ARGO_IND_0089',
+        platformType: 'argo',
+        latitude: 15.2,
+        longitude: 88.5,
+        timestamp: new Date('2024-10-15T07:15:00Z'),
         depth: 500,
+        status: 'NORMAL',
+        modelTemperature: 18.2,
+        observedTemperature: 18.5,
+        difference: 0.3,
         variables: {
-          temperature: 22.8,
-          salinity: 35.5,
-          oxygen: 4.5
+          temperature: 18.5,
+          salinity: 34.9,
+          oxygen: 4.8,
+          chlorophyll: 0.6
+        },
+        profile: [
+          { depth: 0, model: 30.2, observed: 30.3 },
+          { depth: 100, model: 27.6, observed: 27.8 },
+          { depth: 200, model: 24.1, observed: 24.3 },
+          { depth: 300, model: 20.8, observed: 21.0 },
+          { depth: 500, model: 18.2, observed: 18.5 }
+        ]
+      },
+      {
+        id: 'ARGO_IND_0123',
+        platformId: 'ARGO_IND_0123',
+        platformType: 'argo',
+        latitude: 18.1,
+        longitude: 89.2,
+        timestamp: new Date('2024-10-15T06:00:00Z'),
+        depth: 1000,
+        status: 'NORMAL',
+        modelTemperature: 8.9,
+        observedTemperature: 9.4,
+        difference: 0.5,
+        variables: {
+          temperature: 9.4,
+          salinity: 35.1,
+          oxygen: 3.9
         }
       },
       {
-        id: 'DEMO-BGC-001',
-        platformId: 'BGC-123',
-        platformType: 'bgc',
-        latitude: 10.0,
-        longitude: 85.0,
-        timestamp: new Date('2024-01-15'),
+        id: 'ARGO_IND_0156',
+        platformId: 'ARGO_IND_0156',
+        platformType: 'argo',
+        latitude: 7.8,
+        longitude: 83.2,
+        timestamp: new Date('2024-10-15T09:45:00Z'),
         depth: 100,
+        status: 'UPWELLING DETECTED',
+        modelTemperature: 28.1,
+        observedTemperature: 27.2,
+        difference: -0.9,
         variables: {
-          temperature: 27.5,
-          salinity: 34.2,
-          oxygen: 6.8,
-          chlorophyll: 2.1
+          temperature: 27.2,
+          salinity: 34.4,
+          oxygen: 5.9,
+          chlorophyll: 2.8
+        }
+      },
+      {
+        id: 'GLIDER_023',
+        platformId: 'GLIDER_023',
+        platformType: 'glider',
+        latitude: 11.4,
+        longitude: 82.5,
+        timestamp: new Date('2024-10-15T08:00:00Z'),
+        depth: 800,
+        status: 'NORMAL',
+        modelTemperature: 11.2,
+        observedTemperature: 11.0,
+        difference: -0.2,
+        variables: {
+          temperature: 11.0,
+          salinity: 35.0,
+          oxygen: 4.1
+        }
+      },
+      {
+        id: 'GLIDER_041',
+        platformId: 'GLIDER_041',
+        platformType: 'glider',
+        latitude: 12.8,
+        longitude: 92.6,
+        timestamp: new Date('2024-10-15T08:15:00Z'),
+        depth: 1500,
+        status: 'NORMAL',
+        modelTemperature: 5.4,
+        observedTemperature: 5.2,
+        difference: -0.2,
+        variables: {
+          temperature: 5.2,
+          salinity: 34.8,
+          oxygen: 3.5
         }
       }
     ];

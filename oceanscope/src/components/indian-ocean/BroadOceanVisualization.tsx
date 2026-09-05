@@ -140,8 +140,6 @@ function OceanSurface() {
 
 // Ocean currents
 function OceanCurrents({ showCurrents }: { showCurrents: boolean }) {
-  if (!showCurrents) return null;
-
   const currents = useMemo(() => {
     const arr = [];
     for (let i = 0; i < 30; i++) {
@@ -153,6 +151,8 @@ function OceanCurrents({ showCurrents }: { showCurrents: boolean }) {
     }
     return arr;
   }, []);
+
+  if (!showCurrents) return null;
 
   return (
     <group>
@@ -174,8 +174,6 @@ function OceanCurrents({ showCurrents }: { showCurrents: boolean }) {
 
 // Observation markers
 function ObservationMarkers({ showMarkers, onClick }: { showMarkers: boolean; onClick?: (observation: ObservationData) => void }) {
-  if (!showMarkers) return null;
-
   const markers = useMemo(() => {
     return [
       { id: 'ARGO-2900123', lat: 15, lon: 75, type: 'argo', depth: 250 },
@@ -186,6 +184,9 @@ function ObservationMarkers({ showMarkers, onClick }: { showMarkers: boolean; on
       { id: 'ADCP-789', lat: 16, lon: 84, type: 'adcp', depth: 300 }
     ];
   }, []);
+
+  if (!showMarkers) return null;
+
 
   const handleMarkerClick = (marker: any) => {
     if (onClick) {
