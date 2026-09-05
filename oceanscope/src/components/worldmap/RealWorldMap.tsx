@@ -110,13 +110,15 @@ export default function RealWorldMap({ onRegionSelect, selectedRegion }: RealWor
     }
 
     return () => {
-      if (mapRef.current) {
-        regionRectanglesRef.current.forEach(rect => mapRef.current.removeLayer(rect));
-        regionLabelsRef.current.forEach(marker => mapRef.current.removeLayer(marker));
-        mapRef.current.remove();
-        mapRef.current = null;
-      }
-    };
+  const map = mapRef.current;
+
+  if (map) {
+    regionRectanglesRef.current.forEach(rect => map.removeLayer(rect));
+    regionLabelsRef.current.forEach(marker => map.removeLayer(marker));
+    map.remove();
+    mapRef.current = null;
+  }
+};
   }, []);
 
   // Update selected region styling
