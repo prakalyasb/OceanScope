@@ -34,6 +34,7 @@ interface RealWorldMapProps {
 export default function RealWorldMap({ onRegionSelect, selectedRegion }: RealWorldMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const regionRectanglesRef = useRef<L.Rectangle[]>([]);
+  const regionLabelsRef = useRef<L.Marker[]>([]);
 
   useEffect(() => {
     if (!mapRef.current) {
@@ -74,13 +75,15 @@ export default function RealWorldMap({ onRegionSelect, selectedRegion }: RealWor
         const textElement = document.createElement('div');
         textElement.className = 'ocean-label';
         textElement.innerHTML = `<div class="label-text">${region.name}</div>`;
+        textElement.style.zIndex = '1000';
         const icon = L.divIcon({
-          className: 'ocean-label',
+          className: 'ocean-label-container',
           html: textElement,
           iconSize: [150, 30],
           iconAnchor: [75, 15]
         });
-        const marker = L.marker(center, icon).addTo(map);
+        const marker = L.marker(center, { icon, interactive: false }).addTo(map);
+        regionLabelsRef.current.push(marker);
 
         rectangle.on('click', () => {
           onRegionSelect(region);
@@ -108,6 +111,8 @@ export default function RealWorldMap({ onRegionSelect, selectedRegion }: RealWor
 
     return () => {
       if (mapRef.current) {
+        regionRectanglesRef.current.forEach(rect => mapRef.current.removeLayer(rect));
+        regionLabelsRef.current.forEach(marker => mapRef.current.removeLayer(marker));
         mapRef.current.remove();
         mapRef.current = null;
       }
