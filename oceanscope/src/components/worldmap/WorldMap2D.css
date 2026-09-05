@@ -1,0 +1,209 @@
+.world-map-2d {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #0a1628 0%, #0f2744 100%);
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.map-header {
+  padding: 1.5rem;
+  text-align: center;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+}
+
+.map-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #e8f4f8;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.map-icon {
+  width: 2rem;
+  height: 2rem;
+  color: #00d4ff;
+}
+
+.map-subtitle {
+  font-size: 0.875rem;
+  color: #7a9cae;
+}
+
+.map-container {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.world-svg {
+  width: 100%;
+  height: 100%;
+  max-width: 1200px;
+  max-height: 600px;
+}
+
+.world-continents {
+  transition: opacity 0.3s ease;
+}
+
+.ocean-region {
+  fill: rgba(0, 212, 255, 0.1);
+  stroke: rgba(0, 212, 255, 0.3);
+  stroke-width: 2;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.ocean-region:hover {
+  fill: rgba(0, 212, 255, 0.3);
+  stroke: rgba(0, 212, 255, 0.6);
+  stroke-width: 3;
+}
+
+.ocean-region.selected {
+  fill: rgba(0, 212, 255, 0.4);
+  stroke: #00d4ff;
+  stroke-width: 3;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    stroke-opacity: 1;
+  }
+  50% {
+    stroke-opacity: 0.5;
+  }
+}
+
+.region-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  fill: #00d4ff;
+  text-anchor: middle;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.region-info {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 39, 68, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 0.75rem;
+  padding: 1rem 1.5rem;
+  text-align: center;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.region-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #00d4ff;
+  margin-bottom: 0.25rem;
+}
+
+.region-coords {
+  font-size: 0.75rem;
+  color: #7a9cae;
+  margin-bottom: 0.5rem;
+}
+
+.region-action {
+  font-size: 0.6875rem;
+  color: #2dd4bf;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.selected-region-panel {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(15, 39, 68, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.selected-title {
+  font-size: 0.6875rem;
+  color: #7a9cae;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  margin-bottom: 0.25rem;
+}
+
+.selected-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #00d4ff;
+  margin-bottom: 0.75rem;
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 0.375rem;
+  color: #00d4ff;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+  background: rgba(0, 212, 255, 0.2);
+  border-color: rgba(0, 212, 255, 0.3);
+}
+
+.back-btn svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}

@@ -1,0 +1,147 @@
+.color-legend {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  width: 280px;
+  background: rgba(15, 39, 68, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 12px;
+  padding: 16px;
+  z-index: 1000;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.legend-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.legend-icon {
+  width: 16px;
+  height: 16px;
+  color: #00d4ff;
+}
+
+.legend-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #00d4ff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.legend-gradient {
+  margin-bottom: 12px;
+}
+
+.gradient-bar {
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+.legend-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.range-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.range-label {
+  font-size: 11px;
+  color: #7a9cae;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  min-width: 35px;
+}
+
+.range-input-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.range-input {
+  flex: 1;
+  padding: 6px 8px;
+  background: rgba(10, 22, 40, 0.8);
+  border: 1px solid rgba(0, 212, 255, 0.15);
+  border-radius: 6px;
+  color: #e8f4f8;
+  font-size: 13px;
+  text-align: center;
+  font-family: 'Fira Code', monospace;
+}
+
+.range-input:focus {
+  outline: none;
+  border-color: #00d4ff;
+}
+
+.range-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.15);
+  border-radius: 6px;
+  color: #00d4ff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.range-btn:hover {
+  background: rgba(0, 212, 255, 0.2);
+  border-color: rgba(0, 212, 255, 0.3);
+}
+
+.range-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.legend-variable {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 212, 255, 0.15);
+}
+
+.variable-label {
+  font-size: 11px;
+  color: #7a9cae;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.variable-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e8f4f8;
+}

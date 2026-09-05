@@ -7,5 +7,11 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true
+  },
+  define: {
+    CESIUM_BASE_URL: JSON.stringify('/cesium/')
+  },
+  optimizeDeps: {
+    exclude: ['cesium']
   }
 })

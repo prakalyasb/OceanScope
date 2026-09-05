@@ -1,0 +1,136 @@
+@import 'leaflet/dist/leaflet.css';
+
+.real-world-map {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #0a1628 0%, #0f2744 100%);
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.map-header {
+  padding: 1.5rem;
+  text-align: center;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+  background: rgba(15, 39, 68, 0.7);
+  backdrop-filter: blur(10px);
+}
+
+.map-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #e8f4f8;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.map-subtitle {
+  font-size: 0.875rem;
+  color: #7a9cae;
+}
+
+.map-container {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 600px;
+}
+
+#world-map {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  min-height: 600px;
+}
+
+/* Ocean label styling */
+.ocean-label {
+  background: rgba(15, 39, 68, 0.9);
+  border: 2px solid #00d4ff;
+  border-radius: 8px;
+  padding: 8px 16px;
+  color: #00d4ff;
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.label-text {
+  color: #00d4ff;
+  font-weight: 700;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.selected-region-info {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(15, 39, 68, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  z-index: 1000;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.selected-title {
+  font-size: 0.6875rem;
+  color: #7a9cae;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  margin-bottom: 0.25rem;
+}
+
+.selected-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #00d4ff;
+  margin-bottom: 0.75rem;
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 0.375rem;
+  color: #00d4ff;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+  background: rgba(0, 212, 255, 0.2);
+  border-color: rgba(0, 212, 255, 0.3);
+}
+
+.back-btn svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
